@@ -1,0 +1,27 @@
+{
+  "appId": "com.nova.localmediascanner",
+  "appName": "NOVA Player",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#080810",
+      "overlaysWebView": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": true,
+      "backgroundColor": "#080810",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": true,
+      "androidSpinnerStyle": "large",
+      "iosSpinnerStyle": "small",
+      "spinnerColor": "#7c5cfc",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
+  }
+}
