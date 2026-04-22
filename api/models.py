@@ -22,3 +22,17 @@ class PlaylistItem(models.Model):
     media_path = models.CharField(max_length=1000)
     media_type = models.CharField(max_length=10)
     order = models.IntegerField(default=0)
+
+class MediaFile(models.Model):
+    """Persistent index of all discovered local media files."""
+    name = models.CharField(max_length=500)
+    path = models.CharField(max_length=2000, unique=True, db_index=True)
+    media_type = models.CharField(max_length=10, db_index=True)  # 'audio' or 'video'
+    size = models.BigIntegerField(default=0)
+    duration = models.FloatField(default=0)
+    folder = models.CharField(max_length=1000, default='')
+    modified = models.FloatField(default=0)  # unix timestamp
+    last_seen = models.FloatField(default=0)  # unix timestamp of last scan
+
+    def __str__(self):
+        return self.name

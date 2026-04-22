@@ -330,16 +330,6 @@
   .dl-progress-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
   .dl-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent3), var(--accent)); transition: width 0.3s; }
 
-  /* Volume Slider */
-  .volume-wrap { display: flex; align-items: center; gap: 12px; padding: 0 32px 10px; }
-  .volume-slider {
-    -webkit-appearance: none; appearance: none;
-    flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; outline: none;
-  }
-  .volume-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none;
-    width: 14px; height: 14px; background: white; border-radius: 50%; cursor: pointer; border: 2px solid var(--accent);
-  }
 
   /* Playlist Modal */
   .playlist-modal-content { padding: 20px; }
@@ -457,10 +447,6 @@
     <div class="progress-times"><span id="timeCurrent">0:00</span><span id="timeTotal">0:00</span></div>
   </div>
 
-  <div class="volume-wrap">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
-  </div>
 
   <div class="player-actions">
       <button class="action-btn" id="eqBtn" onclick="toggleEqualizer()">
@@ -681,7 +667,7 @@
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         console.log('App became active, checking for updates...');
-        if (Capacitor.isNativePlatform()) scanLocalStorage();
+        if (window.Capacitor && Capacitor.isNativePlatform()) scanLocalStorage();
       }
     });
   }
@@ -707,8 +693,8 @@
   let isRepeat = false;
   let isAutoplay = true;
   let favorites = []; // Persisted favorites
-  let speeds = [1, 1.25, 1.5, 2.0, 0.5];
   let currentSpeedIdx = 0;
+  let scanningActive = false;
   
   // Server Config
   let serverIp = '10.64.12.74'; // Default
@@ -772,7 +758,6 @@
   }
 
   // --- NATIVE STORAGE SCANNER ---
-  let scanningActive = false;
   async function scanLocalStorage() {
     if (scanningActive) return;
     scanningActive = true;
@@ -1443,12 +1428,6 @@ function hideSplash() {
     if (activePlayer) activePlayer.pause();
   }
 
-  function setVolume(val) {
-    if (activePlayer) activePlayer.volume = val;
-    // Sync both if needed, but active player is what matters
-    videoEl.volume = val;
-    audioEl.volume = val;
-  }
 
   function togglePlay() {
     if (!activePlayer) return;
