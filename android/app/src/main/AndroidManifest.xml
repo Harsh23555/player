@@ -1,13 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- ═══════════════════════════════════════════════════
+         STORAGE PERMISSIONS — Required to scan device files
+         ═══════════════════════════════════════════════════ -->
+
+    <!-- Android 13+ (API 33+): Granular media permissions -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- Android 10–12 (API 29–32): Legacy read permission -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Android 9 and below (API 28-): Write permission (also allows read) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- Android 11+ (API 30+): Full storage access for non-media files
+         NOTE: Requires special Play Store declaration if publishing.
+         This is needed for scanning ALL folders including Downloads, Documents etc. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- Network (for future server features) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- Vibration (optional, for haptic feedback) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Keep CPU awake during media playback -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Required for MediaStore queries on Android 10+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+        tools:ignore="PermissionImpliesUnsatisfiedRequirement"
+        xmlns:tools="http://schemas.android.com/tools" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true">
+
+        <!-- requestLegacyExternalStorage="true" is critical for Android 10
+             to access files without scoped storage restrictions -->
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
@@ -15,7 +60,8 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="true">
+            android:exported="true"
+            android:hardwareAccelerated="true">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -31,11 +77,9 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths"></meta-data>
+                android:resource="@xml/file_paths" />
         </provider>
+
     </application>
 
-    <!-- Permissions -->
-
-    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

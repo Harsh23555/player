@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>NOVA — Local Media Scanner</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#7c5cfc">
@@ -815,6 +816,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      will-change: transform;
     }
 
     .player-modal.open {
@@ -827,12 +829,11 @@
       z-index: 20;
       display: flex;
       flex-direction: column;
-      background: radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.4) 100%);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
+      /* Darken edges for control visibility without blurring the actual video */
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, transparent 15%, transparent 85%, rgba(0, 0, 0, 0.7) 100%);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .player-modal.show-controls .player-ui-overlay {
@@ -1007,6 +1008,16 @@
       height: 100%;
       object-fit: contain;
       display: block;
+      /* Force high-performance hardware compositing */
+      -webkit-transform: translate3d(0, 0, 0);
+      transform: translate3d(0, 0, 0);
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      -webkit-perspective: 1000;
+      perspective: 1000;
+      /* Prevent sub-pixel blur */
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: auto;
     }
 
     .player-info {
@@ -1093,32 +1104,7 @@
       color: var(--muted);
     }
 
-    /* Volume */
-    .volume-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 0 28px 8px;
-    }
 
-    .volume-slider {
-      -webkit-appearance: none;
-      flex: 1;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
-      outline: none;
-    }
-
-    .volume-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
-      background: #fff;
-      border-radius: 50%;
-      cursor: pointer;
-      border: 2px solid var(--accent);
-    }
 
     /* Action row */
     .player-actions {
@@ -1333,6 +1319,114 @@
       flex-shrink: 0;
     }
 
+    /* Social Share Grid */
+    .share-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px 10px;
+      padding: 10px 10px 30px;
+    }
+
+    .share-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .share-option:active {
+      transform: scale(0.85);
+    }
+
+    .share-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      transition: var(--transition);
+    }
+
+    .share-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-soft);
+      text-align: center;
+      max-width: 70px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Brand Colors */
+    .bg-whatsapp {
+      background: #25D366;
+    }
+
+    .bg-facebook {
+      background: #1877F2;
+    }
+
+    .bg-twitter {
+      background: #000000;
+    }
+
+    .bg-telegram {
+      background: #0088cc;
+    }
+
+    .bg-snapchat {
+      background: #FFFC00;
+      color: #000 !important;
+    }
+
+    .bg-linkedin {
+      background: #0077b5;
+    }
+
+    .bg-reddit {
+      background: #FF4500;
+    }
+
+    .bg-pinterest {
+      background: #BD081C;
+    }
+
+    .bg-tiktok {
+      background: #000000;
+    }
+
+    .bg-messenger {
+      background: #0084FF;
+    }
+
+    .bg-gmail {
+      background: #EA4335;
+    }
+
+    .bg-sms {
+      background: #4caf50;
+    }
+
+    .bg-copy {
+      background: var(--accent);
+    }
+
+    .bg-native {
+      background: var(--accent3);
+    }
+
+    .bg-instagram {
+      background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    }
+
     /* EQ */
     .eq-sliders {
       display: flex;
@@ -1358,6 +1452,7 @@
 
     .eq-slider {
       -webkit-appearance: none;
+      appearance: none;
       width: 140px;
       height: 4px;
       background: rgba(255, 255, 255, 0.08);
@@ -1371,6 +1466,7 @@
 
     .eq-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
+      appearance: none;
       width: 16px;
       height: 16px;
       border-radius: 50%;
@@ -1779,8 +1875,7 @@
           <line x1="3" y1="18" x2="3.01" y2="18" />
         </svg>
       </div>
-      <div class="icon-btn" id="installBtn" style="display:none;" onclick="deferredPrompt&&deferredPrompt.prompt()"
-        title="Install App">
+      <div class="icon-btn" onclick="openUrlDownloader()" title="Download Video">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <polyline points="7 10 12 15 17 10" />
@@ -1885,7 +1980,7 @@
         <div class="audio-art-icon">🎵</div>
       </div>
       <div class="video-container" id="videoContainer">
-        <video id="videoPlayer" playsinline preload="metadata" style="will-change: transform;"></video>
+        <video id="videoPlayer" playsinline preload="auto" style="width:100%; height:100%;"></video>
       </div>
     </div>
     <div class="player-ui-overlay" id="playerUiOverlay">
@@ -1898,7 +1993,7 @@
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </div>
-        <span class="player-label" id="playerLabel">Now Playing</span>
+        <span class="player-label" id="playerLabel" style="display:none;"></span>
         <div class="player-close" onclick="toggleFullscreen()" id="fsBtn" style="visibility:hidden;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
@@ -1917,21 +2012,13 @@
         <div class="progress-bg" id="progressBg" onclick="seek(event)">
           <div class="progress-fill" id="progressFill"></div>
         </div>
-        <div class="progress-times">
+        <div class="progress-times" style="display:none;">
           <span id="timeCurrent">0:00</span>
           <span id="timeTotal">0:00</span>
         </div>
       </div>
 
-      <div class="volume-wrap">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          style="color:var(--muted);flex-shrink:0;">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-        </svg>
-        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.01" value="1"
-          oninput="setVolume(this.value)">
-      </div>
+
 
 
       <div class="player-actions">
@@ -1961,6 +2048,14 @@
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path
               d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </button>
+        <button class="action-btn" id="downloadBtn" onclick="handleOption('download')" style="display:none;"
+          title="Download to device">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
         </button>
         <button class="action-btn" onclick="showMoreOptions()">
@@ -2036,7 +2131,9 @@
         </button>
       </div>
     </div>
-    <audio id="audioPlayer" preload="metadata"></audio>
+    <audio id="audioPlayer" preload="auto"></audio>
+    <audio id="audioPreloader" preload="auto" style="display:none;"></audio>
+    <video id="videoPreloader" playsinline preload="auto" style="display:none;"></video>
   </div>
 
   <!-- ── Options Modal ── -->
@@ -2054,6 +2151,14 @@
           <path d="M12 5v14M5 12h14" />
         </svg>
         <span>Add to Queue</span>
+      </div>
+      <div class="option-item" id="downloadOption" onclick="handleOption('download')" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        <span>Download to Phone</span>
       </div>
       <div class="option-item" onclick="handleOption('playlist')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2122,6 +2227,21 @@
         <div class="sheet-close" onclick="closeModal('propsModal')">✕</div>
       </div>
       <div class="props-list" id="propsList"></div>
+    </div>
+  </div>
+
+  <!-- ── Social Share Modal ── -->
+  <div class="modal-overlay" id="socialShareModal" onclick="closeModal('socialShareModal',event)">
+    <div class="modal-sheet" onclick="stopProp(event)">
+      <div class="sheet-handle">
+        <div class="sheet-handle-bar"></div>
+      </div>
+      <div class="sheet-header">
+        <div class="sheet-title">Share to...</div>
+        <div class="sheet-close" onclick="closeModal('socialShareModal')">✕</div>
+      </div>
+      <div class="share-grid" id="shareGrid"></div>
+      <div style="height:env(safe-area-inset-bottom, 20px);"></div>
     </div>
   </div>
 
@@ -2208,6 +2328,84 @@
     </div>
   </div>
 
+  <!-- ── Download Quality Modal ── -->
+  <div class="modal-overlay" id="downloadQualityModal" onclick="closeModal('downloadQualityModal',event)">
+    <div class="modal-sheet" onclick="stopProp(event)">
+      <div class="sheet-handle">
+        <div class="sheet-handle-bar"></div>
+      </div>
+      <div class="sheet-header">
+        <div class="sheet-title">Select Quality</div>
+        <div class="sheet-close" onclick="closeModal('downloadQualityModal')">✕</div>
+      </div>
+      <div class="option-item" onclick="selectDownloadQuality('1080p')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="10" rx="2" ry="2" />
+          <path d="M12 12h.01" />
+        </svg>
+        <span>1080p Full HD</span>
+      </div>
+      <div class="option-item" onclick="selectDownloadQuality('720p')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="10" rx="2" ry="2" />
+          <path d="M12 12h.01" />
+        </svg>
+        <span>720p HD</span>
+      </div>
+      <div class="option-item" onclick="selectDownloadQuality('480p')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="10" rx="2" ry="2" />
+          <path d="M12 12h.01" />
+        </svg>
+        <span>480p SD</span>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+  </div>
+
+  <!-- ── URL Downloader Modal ── -->
+  <div class="modal-overlay" id="urlDownloaderModal" onclick="closeModal('urlDownloaderModal',event)">
+    <div class="modal-sheet" style="height:80vh;display:flex;flex-direction:column;max-height:800px;"
+      onclick="stopProp(event)">
+      <div class="sheet-handle">
+        <div class="sheet-handle-bar"></div>
+      </div>
+      <div class="sheet-header" style="flex-shrink:0;">
+        <div class="sheet-title">Video Downloader</div>
+        <div class="sheet-close" onclick="closeModal('urlDownloaderModal')">✕</div>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label">Media URL (YouTube, Facebook, etc.)</label>
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="dlUrlInput" class="form-input" placeholder="Paste link here..." style="flex:1;">
+          <button class="primary-btn" style="width:auto; margin:0;" onclick="fetchUrlInfo()"
+            id="fetchUrlBtn">Fetch</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label">Save Path (Optional)</label>
+        <input type="text" id="dlSavePathInput" class="form-input" placeholder="Default: Downloads/NOVA_Downloads">
+      </div>
+      <div id="dlInfoContainer" style="display:none; padding: 0 20px; overflow-y:auto; flex:1;">
+        <img id="dlThumb" src=""
+          style="width:100%; border-radius:12px; margin-bottom:10px; max-height: 200px; object-fit: cover;">
+        <div id="dlTitle" style="font-weight:bold; font-size:14px; margin-bottom:5px;"></div>
+        <div id="dlDuration" style="font-size:12px; color:var(--muted); margin-bottom:15px;"></div>
+        <div class="form-label">Select Quality</div>
+        <div id="dlQualities" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;"></div>
+      </div>
+      <div id="dlServerProgressContainer" style="display:none; padding: 0 20px; margin-bottom:30px; flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px; font-weight:bold;">
+          <span id="dlServerStatus" style="color:var(--accent);">Starting...</span>
+          <span id="dlServerPercent">0%</span>
+        </div>
+        <div class="progress-bg" style="height:8px; cursor:default; border-radius:4px; overflow:hidden;">
+          <div class="progress-fill" id="dlServerFill" style="width:0%; transition: width 0.3s;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toastMsg" class="toast"></div>
 
   <!-- ════════════════════════════════════════════
@@ -2223,18 +2421,17 @@
     }
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault(); deferredPrompt = e;
-      document.getElementById('installBtn').style.display = 'flex';
+      // No need to show/hide, it's always visible now
     });
     window.addEventListener('appinstalled', () => {
-      document.getElementById('installBtn').style.display = 'none';
       showToast('NOVA Player installed on home screen!');
     });
 
-    let Filesystem, Directory, Media, Preferences, App, Share;
+    let Filesystem, Directory, Media, Preferences, App, Share, MediaScanner;
     if (window.Capacitor) {
-      ({ Filesystem, Directory } = Capacitor.Plugins);
-      ({ Media } = Capacitor.Plugins);
-      ({ Preferences, App, Share } = Capacitor.Plugins);
+      ({ Filesystem, Directory, Media, Preferences, App, Share, MediaScanner } = Capacitor.Plugins);
+      // Fallback for community media plugin naming variations
+      if (!Media) Media = window.CapacitorMedia;
 
       App.addListener('backButton', () => {
         if (document.querySelector('.modal-overlay.open')) {
@@ -2249,25 +2446,21 @@
       });
 
       App.addListener('appStateChange', ({ isActive }) => {
-        const now = Date.now();
-        // Only auto-scan if active, native, not currently scanning, and at least 5 mins passed since last scan
-        if (isActive && window.Capacitor && Capacitor.isNativePlatform() && !scanningActive && (now - lastScanTime > 300000)) {
-          scanLocalStorage(false);
-        }
+        // Automatic background refresh removed to prevent UI fluctuation.
+        // Scanning now only happens on initial launch or manual user action.
       });
     }
 
-    // Initial scan on load
-    setTimeout(() => {
-      if (window.Capacitor && Capacitor.isNativePlatform()) scanLocalStorage(false);
-    }, 1000);
+    // Redundant initial scan removed. Scan is now initiated only by the init() function.
 
     /* ── State ── */
     let allMedia = [];
     let localMedia = [];
-    let currentListView = [];
+    let currentListView = []; // UI filtered list
+    let playQueue = [];       // Actual playback queue
+    let queueIndex = -1;      // Pointer in playQueue
     let currentTab = 'all';
-    let activeIndex = -1;
+    let activeIndex = -1;     // Keeping for UI compatibility if needed
     let loopA = null, loopB = null;
     let isHearted = false, isShuffle = false, isRepeat = false, isAutoplay = true;
     let favorites = [];
@@ -2275,12 +2468,28 @@
     let currentFolderPath = null;
     const speeds = [1, 1.25, 1.5, 2.0, 0.5, 0.75];
     let currentSpeedIdx = 0;
-    let serverIp = '10.64.12.74', serverPort = '8000';
-    let apiBase = `http://${serverIp}:${serverPort}`;
+    let serverIp = '10.64.12.74', serverPort = '8080';
+    let apiBase = window.location.origin;
+    if (!apiBase || apiBase === 'null' || apiBase.startsWith('file:')) {
+      apiBase = `http://${serverIp}:${serverPort}`;
+    }
     let scanningActive = false;
     let lastScanTime = 0;
     let sleepTimer = null;
     let lastSelectedFile = null;
+
+    function handleHeaderDownload() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+      } else {
+        const f = playQueue[queueIndex] || lastSelectedFile;
+        if (f && f.source === 'remote') {
+          handleOption('download');
+        } else {
+          showToast('Install the app (on browser) or play a remote file to download.');
+        }
+      }
+    }
 
     /* ── Helpers ── */
     function formatSize(b) {
@@ -2344,12 +2553,71 @@
       if (Preferences) await Preferences.set({ key: 'playlists', value: JSON.stringify(playlists) });
     }
 
+    async function ensurePermissions() {
+      if (!window.Capacitor || !Capacitor.isNativePlatform()) return true;
+
+      try {
+        const prog = document.getElementById('scanProgressText');
+        if (prog) prog.textContent = "Checking permissions...";
+
+        // Check Media permissions (for MediaStore API)
+        let mediaPerms = { publicStorage: 'granted', audio: 'granted', video: 'granted' };
+        if (Media && Media.checkPermissions) {
+          try {
+            mediaPerms = await Media.checkPermissions();
+          } catch (e) { console.warn("Media perms check failed", e); }
+        }
+
+        const isMediaGranted = mediaPerms.publicStorage === 'granted' ||
+          mediaPerms.audio === 'granted' ||
+          mediaPerms.video === 'granted' ||
+          mediaPerms.videos === 'granted' ||
+          mediaPerms.photos === 'granted';
+
+        if (!isMediaGranted && Media && Media.requestPermissions) {
+          if (prog) prog.textContent = "Requesting media access...";
+          try {
+            mediaPerms = await Media.requestPermissions();
+          } catch (e) { console.error("Media perms request failed", e); }
+        }
+
+        // Check Filesystem permissions (for Deep Crawl)
+        let fsPerms = await Filesystem.checkPermissions();
+        if (fsPerms.publicStorage !== 'granted') {
+          if (prog) prog.textContent = "Requesting storage access...";
+          fsPerms = await Filesystem.requestPermissions();
+        }
+
+        const granted = isMediaGranted || (fsPerms.publicStorage === 'granted');
+
+        if (!granted) {
+          showToast("Permission denied. Nova needs storage access to find your files.", 5000);
+          const container = document.getElementById('mediaContainer');
+          container.innerHTML = `
+            <div class="empty-state" style="padding: 40px 20px; text-align: center;">
+              <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;">🚫</div>
+              <h3 style="margin-bottom: 12px; color: var(--text);">Permission Required</h3>
+              <p style="color: var(--muted); font-size: 14px; margin-bottom: 24px; line-height: 1.6;">
+                NOVA needs permission to access your media files to display them here. 
+                Please enable storage access in your device settings.
+              </p>
+              <button class="primary-btn" onclick="scanLocalStorage(true)" style="margin: 0 auto;">Try Again</button>
+            </div>
+          `;
+          return false;
+        }
+        return true;
+      } catch (e) {
+        console.error("Permission check failed", e);
+        return false;
+      }
+    }
+
     /* ── SCANNER ── */
     async function scanLocalStorage(isManual = true) {
       if (scanningActive) return;
-      scanningActive = true;
+
       const container = document.getElementById('mediaContainer');
-      const prog = document.getElementById('scanProgressText');
       const indicator = document.getElementById('scanIndicator');
 
       if (indicator) indicator.style.display = 'inline-block';
@@ -2359,74 +2627,82 @@
         container.innerHTML = `<div class="loading"><div class="loading-spinner"></div>Deep scanning your device…<div class="scan-progress-text" id="scanProgressText">Initializing…</div></div>`;
       }
 
+      const prog = document.getElementById('scanProgressText');
+
       try {
         if (window.Capacitor && Capacitor.isNativePlatform()) {
-          // ── MediaStore & FileSystem Permissions ──
-          if (Filesystem) {
-            try { await Filesystem.requestPermissions(); } catch (e) { console.log('FS perm error', e); }
+          scanningActive = true;
+          const hasPermission = await ensurePermissions();
+          if (!hasPermission) {
+            scanningActive = false;
+            if (indicator) indicator.style.display = 'none';
+            return;
           }
 
-          if (Media) {
+          if (MediaScanner) {
             try {
-              if (prog) prog.textContent = "Requesting permissions...";
-              const perm = await Media.requestPermissions();
-              console.log("Media permissions status:", perm);
+              if (prog) prog.textContent = "Deep scanning device (Native)...";
+              const res = await MediaScanner.getMediaFiles();
+              const combined = res.medias || [];
 
-              const isGranted = perm.publicStorage === 'granted' ||
-                perm.audio === 'granted' ||
-                perm.video === 'granted' ||
-                perm.photos === 'granted' ||
-                perm.images === 'granted';
-
-              if (isGranted) {
-                if (prog) prog.textContent = "Querying Library (Music, Videos, Photos)...";
-                const [vRes, aRes] = await Promise.all([
-                  Media.getMedias({ quantity: 2000, types: 'videos' }).catch(e => { console.error('Video scan fail:', e); return { medias: [] }; }),
-                  Media.getMedias({ quantity: 2000, types: 'audio' }).catch(e => { console.error('Audio scan fail:', e); return { medias: [] }; })
-                ]);
-
-                const vList = vRes.medias || (Array.isArray(vRes) ? vRes : []);
-                const aList = aRes.medias || (Array.isArray(aRes) ? aRes : []);
-
-                const combined = [...vList, ...aList];
-
-                if (combined.length === 0) {
-                  console.log('Specific scans empty, trying "all"...');
-                  const allRes = await Media.getMedias({ quantity: 2000 }).catch(() => ({ medias: [] }));
-                  const allList = allRes.medias || (Array.isArray(allRes) ? allRes : []);
-                  combined.push(...allList);
-                }
-
-                combined.forEach(m => {
-                  if (!m.identifier) return;
-                  const path = m.identifier;
-                  if (!localMedia.some(lm => lm.path === path)) {
-                    let mType = 'audio';
-                    if (m.type === 'video' || m.type === 'videos' || path.match(/\.(mp4|mkv|webm|3gp|avi|mov|m4v)/i)) mType = 'video';
-                    else if (m.type === 'image' || m.type === 'images' || path.match(/\.(jpg|jpeg|png|gif|webp)/i)) mType = 'image';
-
-                    localMedia.push({
-                      name: m.name || path.split('/').pop() || 'Untitled',
-                      path: path,
-                      type: mType,
-                      size: m.size || 0,
-                      duration: m.duration || 0,
-                      modified: m.creationDate ? new Date(m.creationDate).getTime() : Date.now(),
-                      source: 'local',
-                      folder: m.albumIdentifier || 'Internal Storage',
-                      thumbnail: m.thumbnail || null
-                    });
-                  }
-                });
-                if (prog) prog.textContent = `${localMedia.length} files found in library...`;
-              } else {
-                console.warn('Permissions not granted:', perm);
-                showToast('Permission denied. Please allow file and media access.');
+              if (combined.length === 0 && Media) {
+                console.log('Native scan empty, trying community plugin...');
+                if (prog) prog.textContent = "Querying Library (Fallback)...";
+                const allRes = await Media.getMedias({ quantity: 2000 }).catch(() => ({ medias: [] }));
+                const allList = allRes.medias || (Array.isArray(allRes) ? allRes : []);
+                combined.push(...allList);
               }
+
+              combined.forEach(m => {
+                if (!m.identifier) return;
+                const path = m.identifier;
+                if (!localMedia.some(lm => lm.path === path)) {
+                  let mType = 'audio';
+                  if (m.type === 'video' || m.type === 'videos' || path.match(/\.(mp4|mkv|webm|3gp|avi|mov|m4v)/i)) mType = 'video';
+                  else if (m.type === 'image' || m.type === 'images' || path.match(/\.(jpg|jpeg|png|gif|webp)/i)) mType = 'image';
+
+                  localMedia.push({
+                    name: m.name || path.split('/').pop() || 'Untitled',
+                    path: path,
+                    type: mType,
+                    size: m.size || 0,
+                    duration: m.duration || 0,
+                    modified: m.creationDate ? new Date(m.creationDate).getTime() : Date.now(),
+                    source: 'local',
+                    folder: m.albumIdentifier || 'Internal Storage',
+                    thumbnail: m.thumbnail || null
+                  });
+                }
+              });
+              if (prog) prog.textContent = `${localMedia.length} files found in library...`;
             } catch (e) {
               console.error('MediaStore query failed', e);
-              if (prog) prog.textContent = "MediaStore failed, trying filesystem...";
+              if (prog) prog.textContent = "Native scan failed, trying filesystem...";
             }
+          } else if (Media) {
+            // Original fallback if MediaScanner is not available
+            try {
+              if (prog) prog.textContent = "Querying Media Library...";
+              const res = await Media.getMedias({ quantity: 2000 }).catch(() => ({ medias: [] }));
+              const allList = res.medias || (Array.isArray(res) ? res : []);
+              allList.forEach(m => {
+                if (!m.identifier) return;
+                const path = m.identifier;
+                if (!localMedia.some(lm => lm.path === path)) {
+                  localMedia.push({
+                    name: m.name || path.split('/').pop() || 'Untitled',
+                    path: path,
+                    type: (m.type === 'video' || m.type === 'videos') ? 'video' : 'audio',
+                    size: m.size || 0,
+                    duration: m.duration || 0,
+                    modified: m.creationDate ? new Date(m.creationDate).getTime() : Date.now(),
+                    source: 'local',
+                    folder: m.albumIdentifier || 'Internal Storage',
+                    thumbnail: m.thumbnail || null
+                  });
+                }
+              });
+            } catch (e) { console.error("Community plugin fail", e); }
           }
 
           // ── Deep Filesystem crawl ──
@@ -2711,7 +2987,7 @@
     }
 
     function renderMediaItem(f) {
-      const isPlaying = f.path === (currentListView[activeIndex] || {}).path && document.getElementById('playerModal').classList.contains('open');
+      const isPlaying = f.path === (playQueue[queueIndex] || {}).path && document.getElementById('playerModal').classList.contains('open');
       const isFav = favorites.includes(f.path);
       const thumb = getThumb(f);
       return `
@@ -2730,15 +3006,12 @@
       </div>
       <div class="media-info">
         <div class="media-name${isPlaying ? ' playing-name' : ''}">${escapeHtml(cleanName(f.name))}</div>
-        <div class="media-meta">
-          <span class="media-badge ${f.type}">${f.type === 'video' ? 'VIDEO' : f.type === 'image' ? 'PHOTO' : 'AUDIO'}</span>
-          ${f.size ? `<span class="meta-dot">·</span><span>${formatSize(f.size)}</span>` : ''}
-          ${f.folder ? `<span class="meta-dot">·</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">${escapeHtml(f.folder.split('/').pop())}</span>` : ''}
-        </div>
+        <!-- Technical info (size, folder, badge) hidden for clean UI -->
+        <div class="media-meta" style="display:none;"></div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+      <div style="display:flex; align-items:center; gap:4px; margin-left:auto;">
         ${isPlaying
-          ? `<div class="playing-indicator"><span></span><span></span><span></span></div>`
+          ? ``
           : f.duration ? `<div class="media-duration">${formatTime(f.duration)}</div>` : ''}
         <div class="icon-btn" style="width:30px; height:30px; background:none; border:none;" onclick="event.stopPropagation(); showItemOptions('${escapeAttr(f.path)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
@@ -2849,29 +3122,48 @@
     /* ── PLAYBACK ── */
     function playFile(path) {
       const idx = currentListView.findIndex(f => f.path === path);
-      if (idx === -1) return;
+      if (idx === -1) {
+        const f = localMedia.find(m => m.path === path);
+        if (f) { playQueue = [f]; playIndex(0); }
+        return;
+      }
+      playQueue = [...currentListView];
       playIndex(idx);
     }
 
     function playIndex(idx) {
-      if (idx < 0 || idx >= currentListView.length) return;
+      if (idx < 0 || idx >= playQueue.length) return;
+
+      const prevFile = playQueue[queueIndex];
+      queueIndex = idx;
       activeIndex = idx;
-      const f = currentListView[idx];
+      const f = playQueue[idx];
+
       const audio = document.getElementById('audioPlayer');
       const video = document.getElementById('videoPlayer');
       const audioArt = document.getElementById('audioArt');
       const videoContainer = document.getElementById('videoContainer');
 
+      // ── Reset Player States ──
+      const resetPlayer = (el) => {
+        el.pause();
+        el.removeAttribute('src');
+        el.load(); // Forces the browser to clear the buffer
+        el.currentTime = 0;
+      };
+
+      if (prevFile) {
+        if (prevFile.type === 'video') resetPlayer(video);
+        else resetPlayer(audio);
+      }
+
       // Build URL
       let url;
       if (f.source === 'local' && window.Capacitor && Capacitor.isNativePlatform()) {
-        // Capacitor native: convert file:// to accessible URL
         url = Capacitor.convertFileSrc(f.path);
       } else if (f.source === 'remote') {
-        // PC files indexed by Django backend — stream via same origin
         url = `/api/stream/?path=${encodeURIComponent(f.path)}`;
       } else {
-        // Fallback (shouldn't happen)
         url = f.path;
       }
 
@@ -2879,40 +3171,104 @@
         audioArt.style.display = 'none';
         videoContainer.style.display = 'block';
         document.getElementById('fsBtn').style.visibility = 'visible';
-        document.getElementById('playerLabel').textContent = 'Now Playing · Video';
-        audio.pause(); audio.src = '';
+        document.getElementById('playerLabel').textContent = 'Now Playing Video';
+
+        // Remove any existing load listener
+        if (video._loadListener) video.removeEventListener('canplaythrough', video._loadListener);
+
         video.src = url;
-        video.play().catch(e => {
-          console.error("Video play failed", e);
-          showToast("Video playback failed: " + e.message);
-        });
+        video._loadListener = () => {
+          video.removeEventListener('canplaythrough', video._loadListener);
+          delete video._loadListener;
+          video.play().catch(e => {
+            console.warn("Video play deferred", e);
+            updatePlayBtn(false);
+          });
+        };
+        video.addEventListener('canplaythrough', video._loadListener);
+        video.load();
         setupVideoListeners(video);
       } else {
         audioArt.style.display = 'flex';
         videoContainer.style.display = 'none';
         document.getElementById('fsBtn').style.visibility = 'hidden';
-        document.getElementById('playerLabel').textContent = 'Now Playing · Audio';
-        video.pause(); video.src = '';
+        document.getElementById('playerLabel').textContent = 'Now Playing Audio';
+
+        // Ensure AudioContext is resumed on user interaction
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        // Remove any existing load listener
+        if (audio._loadListener) audio.removeEventListener('canplaythrough', audio._loadListener);
+
         audio.src = url;
-        audio.play().catch(e => {
-          console.error("Audio play failed", e);
-          showToast("Audio playback failed: " + e.message);
-        });
+        audio._loadListener = () => {
+          audio.removeEventListener('canplaythrough', audio._loadListener);
+          delete audio._loadListener;
+          audio.play().catch(e => {
+            console.warn("Audio play deferred", e);
+            updatePlayBtn(false);
+          });
+        };
+        audio.addEventListener('canplaythrough', audio._loadListener);
+        audio.load();
         setupAudioListeners(audio);
         setupVisualizer(audio);
       }
 
       document.getElementById('playerTitle').textContent = cleanName(f.name);
-      document.getElementById('playerMeta').textContent = `${formatSize(f.size)} · ${f.folder ? f.folder.split('/').pop() : 'Local'}`;
+      lastSelectedFile = f;
       document.getElementById('playerModal').classList.add('open');
 
-      // Setup interaction listeners for hidden controls
       setupControlInteraction();
-
-      // Update play button
       updatePlayBtn(true);
       updateHeartBtn();
-      renderList(); // update playing state
+      renderList();
+
+      const dlBtn = document.getElementById('downloadBtn');
+      if (dlBtn) dlBtn.style.display = f.source === 'remote' ? 'flex' : 'none';
+
+      // Preload logic: start preloading next track metadata
+      preloadNext();
+    }
+
+    let preloaderTimer = null;
+    function preloadNext() {
+      clearTimeout(preloaderTimer);
+      // Delay preload slightly to not compete with the current track's initial buffering
+      preloaderTimer = setTimeout(() => {
+        if (!isAutoplay || playQueue.length < 2) return;
+        const nextIdx = getNextIndex();
+        if (nextIdx === queueIndex) return; // Don't preload current
+
+        const f = playQueue[nextIdx];
+        const audioPre = document.getElementById('audioPreloader');
+        const videoPre = document.getElementById('videoPreloader');
+
+        let url;
+        if (f.source === 'local' && window.Capacitor && Capacitor.isNativePlatform()) {
+          url = Capacitor.convertFileSrc(f.path);
+        } else if (f.source === 'remote') {
+          url = `/api/stream/?path=${encodeURIComponent(f.path)}`;
+        } else {
+          url = f.path;
+        }
+
+        if (f.type === 'video') {
+          videoPre.src = url;
+          videoPre.load();
+        } else {
+          audioPre.src = url;
+          audioPre.load();
+        }
+        console.log(`[NOVA] Preloading next: ${f.name}`);
+      }, 3000);
+    }
+
+    function getNextIndex() {
+      if (isShuffle) return Math.floor(Math.random() * playQueue.length);
+      return (queueIndex + 1) % playQueue.length;
     }
 
     let controlTimer;
@@ -2921,8 +3277,9 @@
 
     function setupControlInteraction() {
       const modal = document.getElementById('playerModal');
-      const f = currentListView[activeIndex];
-      const el = f && f.type === 'video' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
+      const f = playQueue[queueIndex];
+      if (!f) return;
+      const el = f.type === 'video' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
 
       if (!el) return;
 
@@ -2971,6 +3328,7 @@
       el.addEventListener('play', () => updatePlayBtn(true));
       el.addEventListener('pause', () => updatePlayBtn(false));
       el.addEventListener('ended', onMediaEnded);
+      el.addEventListener('error', () => isAutoplay && setTimeout(playNext, 1000));
     }
     function setupVideoListeners(el) {
       if (_videoListenersBound) return;
@@ -2980,6 +3338,7 @@
       el.addEventListener('play', () => updatePlayBtn(true));
       el.addEventListener('pause', () => updatePlayBtn(false));
       el.addEventListener('ended', onMediaEnded);
+      el.addEventListener('error', () => isAutoplay && setTimeout(playNext, 1000));
     }
 
     function updateProgress(el) {
@@ -3003,26 +3362,23 @@
       const f = currentListView[activeIndex];
       if (!f) return;
       const el = f.type === 'video' ? video : audio;
-      el.paused ? el.play() : el.pause();
+      el.paused ? el.play().catch(e => console.warn("Toggle play failed", e)) : el.pause();
     }
 
     function seek(e) {
       const bg = document.getElementById('progressBg');
       const ratio = e.offsetX / bg.offsetWidth;
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex];
       const el = f && f.type === 'video' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
       if (el.duration) el.currentTime = ratio * el.duration;
     }
 
-    function setVolume(v) {
-      document.getElementById('audioPlayer').volume = v;
-      document.getElementById('videoPlayer').volume = v;
-    }
+
 
     function addToQueue(path) {
       const f = localMedia.find(m => m.path === path);
-      if (f && !currentListView.some(q => q.path === path)) {
-        currentListView.push(f);
+      if (f && !playQueue.some(q => q.path === path)) {
+        playQueue.push(f);
         showToast('Added to queue');
       } else {
         showToast('Already in queue');
@@ -3031,51 +3387,55 @@
 
     function removeFromQueue(idx, e) {
       if (e) e.stopPropagation();
-      if (idx === activeIndex) {
+      if (idx === queueIndex) {
         showToast('Cannot remove currently playing track');
         return;
       }
-      currentListView.splice(idx, 1);
-      if (idx < activeIndex) activeIndex--;
+      playQueue.splice(idx, 1);
+      if (idx < queueIndex) queueIndex--;
       renderQueue();
     }
 
     function moveQueueItem(idx, direction, e) {
       if (e) e.stopPropagation();
       const newIdx = idx + direction;
-      if (newIdx < 0 || newIdx >= currentListView.length) return;
+      if (newIdx < 0 || newIdx >= playQueue.length) return;
 
-      const item = currentListView.splice(idx, 1)[0];
-      currentListView.splice(newIdx, 0, item);
+      const item = playQueue.splice(idx, 1)[0];
+      playQueue.splice(newIdx, 0, item);
 
-      if (idx === activeIndex) activeIndex = newIdx;
-      else if (activeIndex === newIdx) activeIndex = idx;
+      if (idx === queueIndex) queueIndex = newIdx;
+      else if (queueIndex === newIdx) queueIndex = idx;
 
       renderQueue();
     }
 
 
     function playNext() {
-      if (!currentListView.length) return;
-      let next;
-      if (isShuffle) next = Math.floor(Math.random() * currentListView.length);
-      else next = (activeIndex + 1) % currentListView.length;
-      playIndex(next);
+      if (!playQueue.length) return;
+      playIndex(getNextIndex());
     }
     function playPrev() {
-      if (!currentListView.length) return;
-      const prev = (activeIndex - 1 + currentListView.length) % currentListView.length;
+      if (!playQueue.length) return;
+      const prev = (queueIndex - 1 + playQueue.length) % playQueue.length;
       playIndex(prev);
     }
 
     function onMediaEnded() {
+      // Small debounce to prevent rapid cycling
+      if (this._ending) return;
+      this._ending = true;
+      setTimeout(() => this._ending = false, 500);
+
       document.getElementById('playerModal').classList.add('show-controls');
+
       if (isRepeat) {
-        const f = currentListView[activeIndex];
-        const el = f && f.type === 'video' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
-        el.currentTime = 0; el.play();
+        this.currentTime = 0;
+        this.play().catch(() => { });
       } else if (isAutoplay) {
         playNext();
+      } else {
+        updatePlayBtn(false);
       }
     }
 
@@ -3115,7 +3475,7 @@
       showToast(`Playback speed: ${spd}×`);
     }
     function toggleHeart() {
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex] || lastSelectedFile;
       if (!f) return;
       const idx = favorites.indexOf(f.path);
       if (idx === -1) { favorites.push(f.path); showToast('Added to favourites ♥'); }
@@ -3125,14 +3485,16 @@
       renderList();
     }
     function updateHeartBtn() {
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex];
       const on = f && favorites.includes(f.path);
       const btn = document.getElementById('heartBtn');
+      if (!btn) return;
       btn.classList.toggle('active-state', on);
-      btn.querySelector('svg').setAttribute('fill', on ? 'var(--accent2)' : 'none');
+      const svg = btn.querySelector('svg');
+      if (svg) svg.setAttribute('fill', on ? 'var(--accent2)' : 'none');
     }
     function toggleABLoop() {
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex];
       const el = f && f.type === 'video' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
       if (loopA === null) { loopA = el.currentTime; document.getElementById('abLoopBtn').classList.add('active-state'); showToast('A-B Loop: point A set'); }
       else if (loopB === null) { loopB = el.currentTime; showToast(`A-B Loop active (${formatTime(loopA)} → ${formatTime(loopB)})`); }
@@ -3232,10 +3594,12 @@
     }
 
     function showMoreOptions() {
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex];
       if (f) {
         lastSelectedFile = f;
         document.getElementById('optionsTitle').textContent = cleanName(f.name);
+        const dlOpt = document.getElementById('downloadOption');
+        if (dlOpt) dlOpt.style.display = f.source === 'remote' ? 'flex' : 'none';
         openModal('optionsModal');
       }
     }
@@ -3245,20 +3609,21 @@
       if (f) {
         lastSelectedFile = f;
         document.getElementById('optionsTitle').textContent = cleanName(f.name);
+        const dlOpt = document.getElementById('downloadOption');
+        if (dlOpt) dlOpt.style.display = f.source === 'remote' ? 'flex' : 'none';
         openModal('optionsModal');
       }
     }
 
-    function handleOption(action) {
+    function handleOption(action, path = null) {
       closeModal('optionsModal');
-      const f = currentListView[activeIndex] || lastSelectedFile;
+      const f = (path ? localMedia.find(m => m.path === path) : lastSelectedFile) || playQueue[queueIndex];
       if (!f) return;
       switch (action) {
         case 'queue': addToQueue(f.path); break;
         case 'playlist': openModal('addToPlaylistModal'); renderAddToPlaylist(); break;
         case 'share':
-          if (Share && f) Share.share({ title: f.name, url: f.path }).catch(() => { });
-          else showToast('Share not available');
+          openSocialShare(f);
           break;
         case 'properties': showProperties(f); break;
         case 'ringtone': showToast('Set as Ringtone: use Android settings'); break;
@@ -3277,36 +3642,377 @@
         case 'delete':
           deleteFile(f.path);
           break;
+        case 'download':
+          if (f.type === 'video' && f.source === 'remote') {
+            openModal('downloadQualityModal');
+          } else {
+            startDownload(f);
+          }
+          break;
+      }
+    }
+
+    function selectDownloadQuality(quality) {
+      closeModal('downloadQualityModal');
+      const f = lastSelectedFile || playQueue[queueIndex];
+      if (!f) return;
+      startDownload(f, quality);
+    }
+
+    /* ── URL Video Downloader Logic ── */
+    function openUrlDownloader() {
+      document.getElementById('dlUrlInput').value = '';
+      document.getElementById('dlInfoContainer').style.display = 'none';
+      document.getElementById('dlServerProgressContainer').style.display = 'none';
+      openModal('urlDownloaderModal');
+    }
+
+    async function fetchUrlInfo() {
+      const url = document.getElementById('dlUrlInput').value.trim();
+      if (!url) return;
+      const btn = document.getElementById('fetchUrlBtn');
+      btn.textContent = '...';
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${apiBase}/api/download/info/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('dlThumb').src = data.thumbnail || '';
+        document.getElementById('dlTitle').textContent = data.title || 'Unknown Title';
+        document.getElementById('dlDuration').textContent = data.duration ? formatTime(data.duration) : '';
+
+        const qContainer = document.getElementById('dlQualities');
+        qContainer.innerHTML = '';
+        const safeQualities = data.available_qualities && data.available_qualities.length ? data.available_qualities : ['1080p', '720p', '480p'];
+        safeQualities.forEach(q => {
+          const qBtn = document.createElement('button');
+          qBtn.className = 'preset-btn';
+          qBtn.textContent = q;
+          qBtn.onclick = () => startServerDownload(url, q);
+          qContainer.appendChild(qBtn);
+        });
+
+        const aBtn = document.createElement('button');
+        aBtn.className = 'preset-btn';
+        aBtn.textContent = 'Audio (MP3)';
+        aBtn.onclick = () => startServerDownload(url, 'audio');
+        qContainer.appendChild(aBtn);
+
+        document.getElementById('dlInfoContainer').style.display = 'block';
+      } catch (e) {
+        showToast(e.message);
+      } finally {
+        btn.textContent = 'Fetch';
+        btn.disabled = false;
+      }
+    }
+
+    async function startServerDownload(url, format) {
+      try {
+        const save_path = document.getElementById('dlSavePathInput').value.trim();
+        const res = await fetch(`${apiBase}/api/download/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, format, save_path })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('dlServerProgressContainer').style.display = 'block';
+        pollServerDownload(data.task_id);
+      } catch (e) {
+        showToast(e.message);
+      }
+    }
+
+    function pollServerDownload(taskId) {
+      const statusLabel = document.getElementById('dlServerStatus');
+      const percentLabel = document.getElementById('dlServerPercent');
+      const fillBar = document.getElementById('dlServerFill');
+
+      // Use EventSource (SSE) for real-time updates
+      if (!!window.EventSource) {
+        const source = new EventSource(`${apiBase}/api/download/progress-sse/?task_id=${taskId}`);
+
+        source.onmessage = function (event) {
+          const data = JSON.parse(event.data);
+
+          if (data.error) {
+            showToast('Error: ' + data.error);
+            source.close();
+            return;
+          }
+
+          let statusText = data.status;
+          if (data.status === 'downloading') {
+            const speed = Math.round((data.speed || 0) / 1024);
+            statusText = `Downloading (${speed} KB/s)`;
+          } else if (data.status === 'converting') {
+            statusText = 'Converting/Processing...';
+          }
+
+          statusLabel.textContent = statusText;
+          const prog = Math.round(data.progress || 0);
+          percentLabel.textContent = prog + '%';
+          fillBar.style.width = prog + '%';
+
+          if (data.status === 'completed') {
+            source.close();
+            showToast('Download completed!');
+            setTimeout(() => {
+              closeModal('urlDownloaderModal');
+              scanLocalStorage(false); // Refresh list
+            }, 1500);
+          } else if (data.status === 'error') {
+            source.close();
+            showToast('Error: ' + (data.error || 'Unknown error'));
+          }
+        };
+
+        source.onerror = function () {
+          source.close();
+          // Fallback to polling if SSE fails
+          startPollingFallback(taskId);
+        };
+      } else {
+        startPollingFallback(taskId);
+      }
+    }
+
+    function startPollingFallback(taskId) {
+      const intv = setInterval(async () => {
+        try {
+          const res = await fetch(`${apiBase}/api/download/status/?task_id=${taskId}`);
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+
+          let statusText = data.status;
+          if (data.status === 'downloading') {
+            statusText = `Downloading (${Math.round((data.speed || 0) / 1024)} KB/s)`;
+          } else if (data.status === 'converting') {
+            statusText = 'Converting...';
+          }
+
+          document.getElementById('dlServerStatus').textContent = statusText;
+          document.getElementById('dlServerPercent').textContent = Math.round(data.progress || 0) + '%';
+          document.getElementById('dlServerFill').style.width = (data.progress || 0) + '%';
+
+          if (data.status === 'completed' || data.status === 'error') {
+            clearInterval(intv);
+            if (data.status === 'completed') {
+              showToast('Download completed!');
+              setTimeout(() => {
+                closeModal('urlDownloaderModal');
+                scanLocalStorage(false);
+              }, 1500);
+            } else {
+              showToast('Error: ' + data.error);
+            }
+          }
+        } catch (e) {
+          clearInterval(intv);
+        }
+      }, 1000);
+    }
+
+    function startDownload(f, quality = null) {
+      const qualityParam = quality ? `&quality=${quality}` : '';
+      const dUrl = f.source === 'remote' ? `${apiBase}/api/stream/?path=${encodeURIComponent(f.path)}${qualityParam}` : f.path;
+      if (window.Capacitor && Capacitor.isNativePlatform()) {
+        downloadMedia(dUrl, f.name, f.type);
+      } else {
+        const a = document.createElement('a');
+        a.href = dUrl;
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`Download started${quality ? ' (' + quality + ')' : ''}`);
+      }
+    }
+
+    /* ── Social Share Logic ── */
+    const socialPlatforms = [
+      { id: 'native', name: 'System', color: 'bg-native', icon: 'M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z' },
+      { id: 'whatsapp', name: 'WhatsApp', color: 'bg-whatsapp', icon: 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z' },
+      { id: 'instagram', name: 'Instagram', color: 'bg-instagram', icon: 'M12 2.163c3.204 0 3.584.012 4.85.07 1.17.054 1.805.249 2.227.412.56.216.96.474 1.38.894.42.42.678.82.894 1.38.163.422.358 1.057.412 2.227.058 1.266.07 1.646.07 4.85s-.012 3.584-.07 4.85c-.054 1.17-.249 1.805-.412 2.227-.216.56-.474.96-.894 1.38-.42.42-.82.678-1.38.894-.422.163-1.057.358-2.227.412-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.17-.054-1.805-.249-2.227-.412-.56-.216-.96-.474-1.38-.894-.42-.42-.678-.82-.894-1.38-.163-.422-.358-1.057-.412-2.227-.058-1.266-.07-1.646-.07-4.85s.012-3.584.07-4.85c.054-1.17.249-1.805.412-2.227.216-.56.474-.96.894-1.38.42-.42.82-.678 1.38-.894.422-.163 1.057-.358 2.227-.412 1.266-.058 1.646-.07 4.85-.07M12 0C8.741 0 8.333.014 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.132 5.775.072 7.053.014 8.333 0 8.741 0 12s.014 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126s1.384 1.078 2.126 1.384c.766.296 1.636.499 2.913.558C8.333 23.986 8.741 24 12 24s3.667-.014 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384s1.078-1.384 1.384-2.126c.296-.765.499-1.636.558-2.913.058-1.28.072-1.687.072-4.947s-.014-3.667-.072-4.947c-.06-1.277-.262-2.148-.558-2.913-.306-.789-.718-1.459-1.384-2.126s-1.384-1.078-2.126-1.384c-.765-.296-1.636-.499-2.913-.558C15.667.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z' },
+      { id: 'facebook', name: 'Facebook', color: 'bg-facebook', icon: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' },
+      { id: 'twitter', name: 'X', color: 'bg-twitter', icon: 'M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.292 19.49h2.039L6.486 3.24H4.298l13.311 17.403z' },
+      { id: 'telegram', name: 'Telegram', color: 'bg-telegram', icon: 'M11.944 0a12 12 0 100 24 12 12 0 000-24zm5.812 8.356c-.173 1.823-.933 6.302-1.32 8.368-.163.874-.486 1.168-.797 1.196-.684.064-1.203-.452-1.865-.886-1.036-.68-1.621-1.103-2.626-1.765-1.162-.765-.408-1.184.254-1.87.173-.18.318-.291 1.623-1.49 1.423-1.3 1.7-1.84 1.703-2.12.003-.28-.152-.43-.448-.43-.12 0-.312.023-.526.082-.214.059-1.824 1.12-5.15 3.364-.488.33-.93.493-1.327.484-.436-.01-1.274-.247-1.897-.45-.764-.247-1.37-.378-1.317-.798.028-.218.328-.441.9-.669 3.515-1.53 5.858-2.54 7.03-3.03 3.344-1.393 4.038-1.635 4.491-1.642.1 0 .322.025.466.14.121.1.156.233.17.34.013.111.028.322.015.53z' },
+      { id: 'snapchat', name: 'Snap', color: 'bg-snapchat', icon: 'M12 0a11.9 11.9 0 00-5.556 1.367c-.267.133-.533.367-.533.667 0 1.256.444 3.011.833 4.844.034.156-.111.233-.211.278C6.011 7.378 4.222 8.356 4.222 10.3c0 1.056.467 1.944 1.344 2.6.1.078.111.2.044.3-.267.433-.678.967-.678 1.6 0 1.311.944 2.156 2.056 2.156.233 0 .5-.044.756-.122.1-.033.2.022.256.1.289.433.822 1.111 1.756 1.111.889 0 1.389-.578 1.667-.933.067-.089.211-.089.289 0 .278.356.778.933 1.667.933.933 0 1.467-.678 1.756-1.111.056-.078.156-.133.256-.1.256.078.522.122.756.122 1.111 0 2.056-.845 2.056-2.156 0-.633-.411-1.167-.678-1.6-.067-.1-.056-.222.044-.3.878-.656 1.344-1.544 1.344-2.6 0-1.944-1.789-2.922-2.311-3.144-.1-.044-.245-.122-.211-.278.389-1.833.833-3.589.833-4.844 0-.3-.267-.533-.533-.667A11.9 11.9 0 0012 0z' },
+      { id: 'linkedin', name: 'LinkedIn', color: 'bg-linkedin', icon: 'M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z' },
+      { id: 'reddit', name: 'Reddit', color: 'bg-reddit', icon: 'M12 0a12 12 0 1012 12A12 12 0 0012 0zm5.01 4.744c.688 0 1.25.563 1.25 1.25 0 .541-.343 1.003-.827 1.177A1.26 1.26 0 0117.684 8c0 1.834-2.545 3.322-5.684 3.322S6.316 9.834 6.316 8c0-.18.048-.352.138-.503a1.25 1.25 0 01.423-2.327c.688 0 1.25.562 1.25 1.25 0 .428-.216.804-.543 1.029.805.908 2.213 1.498 3.824 1.621l.732-3.447.016-.075a.3.3 0 01.378-.224l2.458.52c.164-.326.502-.553.896-.553z' },
+      { id: 'pinterest', name: 'Pinterest', color: 'bg-pinterest', icon: 'M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.966 1.406-5.966s-.359-.72-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146 1.124.347 2.317.535 3.554.535 6.607 0 11.985-5.36 11.985-11.987C24.014 5.367 18.638 0 12.017 0z' },
+      { id: 'messenger', name: 'Messenger', color: 'bg-messenger', icon: 'M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.654V24l4.088-2.242c1.112.309 2.298.475 3.525.475 6.627 0 12-4.975 12-11.111C24 4.974 18.627 0 12 0zm1.291 14.194l-3.076-3.282-5.992 3.282 6.585-7.003 3.153 3.282 5.915-3.282-6.585 7.003z' },
+      { id: 'tiktok', name: 'TikTok', color: 'bg-tiktok', icon: 'M12.525.02c1.31-.02 2.61-.01 3.91-.01.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.59-5.71-.29-2.58 1.34-5.18 3.84-6.07 1.1-.42 2.31-.5 3.48-.28.02 1.42-.01 2.84-.01 4.25-1.01-.22-2.1-.04-2.9.6-.83.69-1.19 1.83-.9 2.87.16.83.68 1.55 1.41 1.95.78.47 1.75.56 2.6.24.8-.27 1.44-.94 1.73-1.71.18-.5.22-1.04.2-1.57-.01-4.52-.01-9.04-.01-13.56z' },
+      { id: 'gmail', name: 'Gmail', color: 'bg-gmail', icon: 'M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L12 9.573l8.073-6.08c1.618-1.214 3.927-.059 3.927 1.964z' },
+      { id: 'sms', name: 'SMS', color: 'bg-sms', icon: 'M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' },
+      { id: 'copy', name: 'Copy Link', color: 'bg-copy', icon: 'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z' }
+    ];
+
+    function openSocialShare(f) {
+      console.log('openSocialShare called', f);
+      if (!f) f = lastSelectedFile || playQueue[queueIndex];
+      if (!f) {
+        showToast('Please select a file first');
+        return;
+      }
+      lastSelectedFile = f;
+      const grid = document.getElementById('shareGrid');
+      if (!grid) {
+        console.error('shareGrid element not found');
+        return;
+      }
+
+      grid.innerHTML = socialPlatforms.map(p => `
+        <div class="share-option" onclick="shareToPlatform('${p.id}')">
+          <div class="share-icon-wrap ${p.color}">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="${p.icon}"/>
+            </svg>
+          </div>
+          <span class="share-label">${p.name}</span>
+        </div>
+      `).join('');
+
+      openModal('socialShareModal');
+    }
+
+    async function shareToPlatform(id) {
+      const f = lastSelectedFile;
+      if (!f) return;
+
+      const title = cleanName(f.name);
+      const desc = `Check out this ${f.type}: ${title}`;
+      const streamUrl = `${apiBase}/api/stream/?path=${encodeURIComponent(f.path)}`;
+
+      // Native platforms should use the OS native share sheet 
+      // to share seamlessly across Instagram, Facebook, YouTube, etc.
+      if (id !== 'copy' && window.Capacitor && Capacitor.isNativePlatform()) {
+        closeModal('socialShareModal');
+        handleNativeShare(f);
+        return;
+      }
+
+      if (id === 'native') {
+        closeModal('socialShareModal');
+        handleNativeShare(f);
+        return;
+      }
+
+      if (id === 'copy') {
+        copyToClipboard(streamUrl);
+        showToast('Link copied to clipboard');
+        return;
+      }
+
+      if (id === 'instagram' || id === 'tiktok') {
+        showToast(`Sharing directly to ${id} is limited. Download and share manually.`);
+        return;
+      }
+
+      const encodedUrl = encodeURIComponent(streamUrl);
+      const encodedText = encodeURIComponent(desc);
+      const encodedTitle = encodeURIComponent(title);
+
+      let shareUrl = '';
+      switch (id) {
+        case 'whatsapp': shareUrl = `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`; break;
+        case 'facebook': shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`; break;
+        case 'twitter': shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`; break;
+        case 'telegram': shareUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`; break;
+        case 'linkedin': shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`; break;
+        case 'reddit': shareUrl = `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`; break;
+        case 'pinterest': shareUrl = `https://pinterest.com/pin/create/button/?url=${encodedUrl}&description=${encodedText}`; break;
+        case 'messenger': shareUrl = `fb-messenger://share/?link=${encodedUrl}`; break;
+        case 'gmail': shareUrl = `mailto:?subject=${encodedTitle}&body=${encodedText}%0A${encodedUrl}`; break;
+        case 'sms': shareUrl = `sms:?body=${encodedText}%20${encodedUrl}`; break;
+      }
+
+      if (shareUrl) {
+        if (id === 'messenger' || id === 'sms') {
+          window.location.href = shareUrl;
+        } else {
+          window.open(shareUrl, '_blank');
+        }
+      }
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try { document.execCommand('copy'); } catch (err) { console.error('Copy failed', err); }
+        document.body.removeChild(textArea);
+      }
+    }
+
+    async function handleNativeShare(f) {
+      if (!Share) {
+        showToast('System share not available');
+        return;
+      }
+      try {
+        let sharePath = f.path;
+        if (f.source === 'local' && window.Capacitor && Filesystem) {
+          const uriRes = await Filesystem.getUri({ path: f.path });
+          sharePath = uriRes.uri;
+        }
+        await Share.share({
+          title: f.name,
+          text: `Check out this ${f.type}: ${f.name}`,
+          files: f.source === 'local' ? [sharePath] : [],
+          url: f.source === 'remote' ? `${apiBase}/api/stream/?path=${encodeURIComponent(f.path)}` : undefined
+        });
+      } catch (e) {
+        console.error('Native Share failed', e);
+        showToast('System share cancelled or failed');
       }
     }
 
     async function deleteFile(path) {
-      const f = localMedia.find(m => m.path === path);
+      const f = localMedia.find(m => m.path === path) || lastSelectedFile;
       if (!f) return;
-      
+
       if (!confirm(`Are you sure you want to delete "${cleanName(f.name)}"?\nThis will permanently remove the file from your storage.`)) {
         return;
       }
 
       try {
+        if (f.source === 'local' && window.Capacitor && Filesystem) {
+          await Filesystem.deleteFile({ path: f.path });
+          showToast('File deleted from device');
+          localMedia = localMedia.filter(m => m.path !== f.path);
+          renderList();
+          return;
+        }
+
         const resp = await fetch('/api/delete/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paths: [path] })
+          body: JSON.stringify({ paths: [f.path] })
         });
-        
+
         const result = await resp.json();
         if (resp.ok) {
           showToast(result.message || 'File deleted');
-          // Remove from UI
-          localMedia = localMedia.filter(m => m.path !== path);
+          localMedia = localMedia.filter(m => m.path !== f.path);
           renderList();
         } else {
           showToast('Failed to delete: ' + (result.error || 'Unknown error'));
         }
       } catch (e) {
         console.error('Delete error:', e);
-        showToast('Network error during deletion');
+        showToast('Deletion failed');
       }
     }
 
@@ -3332,10 +4038,10 @@
     }
     function renderQueue() {
       const el = document.getElementById('queueContainer');
-      if (!currentListView.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Queue is empty</div>'; return; }
-      el.innerHTML = currentListView.map((f, i) => `
-    <div class="queue-item${i === activeIndex ? ' now-playing' : ''}" onclick="playIndex(${i})">
-      <div class="queue-num">${i === activeIndex ? '▶' : i + 1}</div>
+      if (!playQueue.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Queue is empty</div>'; return; }
+      el.innerHTML = playQueue.map((f, i) => `
+    <div class="queue-item${i === queueIndex ? ' now-playing' : ''}" onclick="playIndex(${i})">
+      <div class="queue-num">${i === queueIndex ? '▶' : i + 1}</div>
       <div class="queue-name">${escapeHtml(cleanName(f.name))}</div>
       <div style="display:flex; gap:10px; align-items:center; margin-left:auto;">
         <div class="queue-dur" style="margin-right:8px;">${formatTime(f.duration)}</div>
@@ -3355,7 +4061,7 @@
       openModal('lyricsModal');
     }
     function searchLyricsWeb() {
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex] || lastSelectedFile;
       const query = f ? encodeURIComponent(cleanName(f.name) + ' lyrics') : 'lyrics';
       window.open('https://www.google.com/search?q=' + query, '_blank');
     }
@@ -3425,7 +4131,7 @@
     </div>`;
     }
     function addCurrentToPlaylist(name) {
-      const f = currentListView[activeIndex];
+      const f = lastSelectedFile || playQueue[queueIndex];
       if (!f) return;
       if (!playlists[name].includes(f.path)) playlists[name].push(f.path);
       savePlaylists();
@@ -3438,7 +4144,7 @@
       if (name && name.trim()) {
         playlists[name.trim()] = [];
         savePlaylists();
-        const f = currentListView[activeIndex];
+        const f = lastSelectedFile || playQueue[queueIndex];
         if (f) { playlists[name.trim()].push(f.path); savePlaylists(); }
         showToast(`Added to "${name.trim()}"`);
       }
@@ -3502,6 +4208,19 @@
       await loadSettings();
       document.getElementById('splashStatus').textContent = 'Scanning storage…';
       await fetchMediaFiles();
+
+      // Global interaction listener for browser autoplay compliance
+      const handleFirstInteraction = () => {
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().then(() => console.log("[NOVA] AudioContext resumed"));
+        }
+        window.removeEventListener('click', handleFirstInteraction);
+        window.removeEventListener('keydown', handleFirstInteraction);
+        window.removeEventListener('touchstart', handleFirstInteraction);
+      };
+      window.addEventListener('click', handleFirstInteraction);
+      window.addEventListener('keydown', handleFirstInteraction);
+      window.addEventListener('touchstart', handleFirstInteraction);
     }
     init();
   </script>

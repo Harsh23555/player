@@ -3,22 +3,20 @@
   "appName": "NOVA Player",
   "webDir": "www",
   "bundledWebRuntime": false,
-
   "plugins": {
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#080810",
-      "overlaysWebView": true
+      "overlaysWebView": false
     },
     "SplashScreen": {
-      "launchShowDuration": 3000,
+      "launchShowDuration": 2000,
       "launchAutoHide": true,
       "backgroundColor": "#080810",
       "androidSplashResourceName": "splash",
       "androidScaleType": "CENTER_CROP",
       "showSpinner": true,
       "androidSpinnerStyle": "large",
-      "iosSpinnerStyle": "small",
       "spinnerColor": "#7c5cfc",
       "splashFullScreen": true,
       "splashImmersive": true

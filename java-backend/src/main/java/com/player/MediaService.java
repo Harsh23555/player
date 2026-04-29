@@ -1,8 +1,6 @@
 package com.player;
 
 import org.springframework.stereotype.Service;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
@@ -10,9 +8,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
-import ws.schild.jave.*;
 import ws.schild.jave.info.MultimediaInfo;
 import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.ScreenExtractor;
@@ -122,7 +118,8 @@ public class MediaService {
             MultimediaObject multimediaObject = new MultimediaObject(videoFile);
             ScreenExtractor screenExtractor = new ScreenExtractor();
             // Capture frame at 1 second mark or somewhere in the middle
-            screenExtractor.render(multimediaObject, 320, 180, 1000, thumbFile, "jpg");
+            // Capture frame at 1 second mark (1000ms) with quality/index 1
+            screenExtractor.render(multimediaObject, 320, 180, 1000, thumbFile, 1);
         } catch (Exception e) {
             // Log error
         }

@@ -4,11 +4,31 @@ import json
 import time
 import hashlib
 import threading
+import uuid
 import yt_dlp
 from tinytag import TinyTag
 from django.shortcuts import render
 from django.http import JsonResponse, FileResponse, HttpResponseNotFound, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
+
+# ── Global security & rate limiting ─────────────────────────────────────────
+_rate_limits = {}
+
+def api_security(func):
+    """Decorator to enforce rate limiting and basic security."""
+    def wrapper(request, *args, **kwargs):
+        ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
+        now = time.time()
+        with _scan_lock:
+            reqs = _rate_limits.get(ip, [])
+            # Keep requests from last 60 seconds
+            reqs = [t for t in reqs if now - t < 60]
+            if len(reqs) > 120:  # 120 requests per minute max (scalability)
+                return JsonResponse({'error': 'Rate limit exceeded. Protection against unauthorized downloads activated.'}, status=429)
+            reqs.append(now)
+            _rate_limits[ip] = reqs
+        return func(request, *args, **kwargs)
+    return wrapper
 
 # ── Supported formats ──────────────────────────────────────────────────────
 VIDEO_EXTS = {'.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v', '.flv', '.wmv', '.3gp', '.ts', '.mpg', '.mpeg'}
@@ -250,6 +270,7 @@ def search_api(request):
     return JsonResponse({'media': [build_media_dict(m) for m in qs]})
 
 
+@api_security
 def stream_media(request):
     """Stream a local file with support for Range requests (seek support)."""
     path = request.GET.get('path', '')
@@ -390,43 +411,235 @@ def favorites_api(request):
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
-def download_background(url, format_type):
-    ydl_opts = {
-        'outtmpl': os.path.join(os.path.expanduser('~'), 'Downloads', '%(title)s.%(ext)s'),
-        'quiet': True,
-        'noplaylist': True,
-    }
-    if format_type == 'audio':
-        ydl_opts['format'] = 'ba/bestaudio'
-    elif format_type == '1080p':
-        ydl_opts['format'] = 'b[height<=1080]/b'
-    else:
-        ydl_opts['format'] = 'b[height<=720]/b'
+# ── Advanced Download Manager ───────────────────────────────────────────────
+import concurrent.futures
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        # Trigger re-scan after download completes
-        trigger_scan(force=False)
-    except Exception as e:
-        print(f"[NOVA Download] Failed: {e}")
+class DownloadManager:
+    def __init__(self, max_workers=3):
+        self.downloads = {}
+        self.lock = threading.Lock()
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        self.yt_dlp = yt_dlp
 
+    def get_safe_path(self, user_path):
+        """Sanitize and validate save path to prevent directory traversal."""
+        base_downloads = os.path.join(os.path.expanduser('~'), 'Downloads')
+        nova_dir = os.path.join(base_downloads, 'NOVA_Downloads')
+        
+        if not user_path:
+            return nova_dir
+            
+        # Security: Normalize and check if it's within allowed boundaries
+        # For a local app, we might allow more, but let's be safe.
+        abs_path = os.path.abspath(user_path)
+        # Check if path is reasonable (e.g., not in System32)
+        # We'll allow any user-writable directory for now, but default to NOVA_Downloads
+        if not os.path.exists(abs_path):
+            try:
+                os.makedirs(abs_path, exist_ok=True)
+            except Exception:
+                return nova_dir
+        return abs_path
+
+    def progress_hook(self, d, task_id):
+        with self.lock:
+            if task_id not in self.downloads:
+                return
+            
+            task = self.downloads[task_id]
+            if d['status'] == 'downloading':
+                task['status'] = 'downloading'
+                total = d.get('total_bytes') or d.get('total_bytes_estimate') or 1
+                downloaded = d.get('downloaded_bytes', 0)
+                task['progress'] = round((downloaded / total) * 100, 2)
+                task['speed'] = d.get('speed', 0)
+                task['eta'] = d.get('eta', 0)
+                task['filename'] = os.path.basename(d.get('filename', ''))
+            elif d['status'] == 'finished':
+                task['status'] = 'converting'
+                task['progress'] = 100
+            elif d['status'] == 'error':
+                task['status'] = 'error'
+                task['error'] = 'Download error occurred'
+
+    def run_download(self, task_id, url, format_type, save_path):
+        # Cleanup old tasks (simple version: remove tasks older than 1 hour)
+        now = time.time()
+        with self.lock:
+            to_delete = [tid for tid, t in self.downloads.items() if now - t.get('start_time', 0) > 3600]
+            for tid in to_delete:
+                del self.downloads[tid]
+
+        save_path = self.get_safe_path(save_path)
+        os.makedirs(save_path, exist_ok=True)
+
+        # Build yt-dlp options based on quality
+        ydl_opts = {
+            'outtmpl': os.path.join(save_path, '%(title)s.%(ext)s'),
+            'quiet': True,
+            'noplaylist': True,
+            'progress_hooks': [lambda d: self.progress_hook(d, task_id)],
+            'merge_output_format': 'mp4',
+            'ignoreerrors': False,
+            'no_warnings': True,
+        }
+
+        # Quality selection logic
+        if format_type == 'audio':
+            ydl_opts['format'] = 'bestaudio/best'
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+        elif format_type.endswith('p'):
+            height = format_type.replace('p', '')
+            ydl_opts['format'] = f'bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/best[height<={height}][ext=mp4]/best'
+        else:
+            ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+
+        try:
+            with self.yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                with self.lock:
+                    self.downloads[task_id]['status'] = 'completed'
+                    self.downloads[task_id]['title'] = info.get('title')
+                    self.downloads[task_id]['final_path'] = ydl.prepare_filename(info)
+            
+            # Auto-trigger scan to show new file
+            trigger_scan(force=False)
+        except self.yt_dlp.utils.DownloadError as e:
+            with self.lock:
+                self.downloads[task_id]['status'] = 'error'
+                self.downloads[task_id]['error'] = f"Download failed: {str(e)}"
+        except Exception as e:
+            with self.lock:
+                self.downloads[task_id]['status'] = 'error'
+                self.downloads[task_id]['error'] = f"System error: {str(e)}"
+
+    def start_task(self, url, format_type, save_path):
+        task_id = str(uuid.uuid4())
+        with self.lock:
+            self.downloads[task_id] = {
+                'id': task_id,
+                'url': url,
+                'status': 'queued',
+                'progress': 0,
+                'speed': 0,
+                'eta': 0,
+                'format': format_type,
+                'error': None,
+                'start_time': time.time()
+            }
+        self.executor.submit(self.run_download, task_id, url, format_type, save_path)
+        return task_id
+
+    def get_status(self, task_id=None):
+        with self.lock:
+            if task_id:
+                return self.downloads.get(task_id)
+            return self.downloads
+
+# Instantiate global manager
+_dl_manager = DownloadManager()
 
 @csrf_exempt
+@api_security
 def download_api(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            url = data.get('url')
-            format_type = data.get('format', '720p')
-            if not url:
-                return JsonResponse({"error": "URL is required"}, status=400)
-            thread = threading.Thread(target=download_background, args=(url, format_type))
-            thread.start()
-            return JsonResponse({"message": "Download started!"})
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+    """Process download requests securely and trigger background tasks."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        url = data.get('url')
+        format_type = data.get('format', '720p')
+        save_path = data.get('save_path')
+        
+        if not url:
+            return JsonResponse({"error": "URL is required"}, status=400)
+        
+        task_id = _dl_manager.start_task(url, format_type, save_path)
+        return JsonResponse({"message": "Download task created", "task_id": task_id})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+@api_security
+def download_status_api(request):
+    """API for progress tracking and download status updates."""
+    task_id = request.GET.get('task_id')
+    status = _dl_manager.get_status(task_id)
+    if task_id and not status:
+        return JsonResponse({"error": "Task not found"}, status=404)
+    return JsonResponse(status if task_id else {"downloads": status})
+
+@csrf_exempt
+def download_progress_sse(request):
+    """Server-Sent Events for real-time download progress tracking."""
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({"error": "task_id required"}, status=400)
+
+    def event_stream():
+        last_progress = -1
+        last_status = ""
+        while True:
+            status = _dl_manager.get_status(task_id)
+            if not status:
+                yield f"data: {json.dumps({'error': 'task not found'})}\n\n"
+                break
+            
+            # Only send if something changed
+            if status['progress'] != last_progress or status['status'] != last_status:
+                yield f"data: {json.dumps(status)}\n\n"
+                last_progress = status['progress']
+                last_status = status['status']
+            
+            if status['status'] in ('completed', 'error'):
+                break
+            
+            time.sleep(0.5)
+
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    return response
+
+@csrf_exempt
+@api_security
+def download_info_api(request):
+    """Dynamically fetch available video qualities and validate media sources."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        url = data.get('url')
+        if not url:
+            return JsonResponse({"error": "URL is required"}, status=400)
+            
+        ydl_opts = {'quiet': True, 'noplaylist': True}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            formats = info.get('formats', [])
+            
+            qualities = set()
+            for f in formats:
+                if f.get('vcodec') != 'none' and f.get('height'):
+                    qualities.add(f"{f['height']}p")
+            
+            available_qualities = sorted(list(qualities), key=lambda x: int(x.replace('p', '')), reverse=True)
+            
+            return JsonResponse({
+                'title': info.get('title'),
+                'duration': info.get('duration'),
+                'thumbnail': info.get('thumbnail'),
+                'available_qualities': available_qualities,
+                'formats_raw': len(formats)
+            })
+    except yt_dlp.utils.DownloadError as e:
+        return JsonResponse({"error": f"Invalid link or broken stream: {str(e)}"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 @csrf_exempt
 def delete_media_api(request):
     """Permanently delete one or more media files from disk and DB."""

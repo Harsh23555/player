@@ -58,6 +58,42 @@ public class MediaController {
         return ResponseEntity.notFound().build();
     }
 
+    @PostMapping("/api/delete/")
+    public ResponseEntity<Map<String, String>> deleteMedia(@RequestBody Map<String, List<String>> request) {
+        List<String> paths = request.get("paths");
+        Map<String, String> response = new HashMap<>();
+        if (paths == null || paths.isEmpty()) {
+            response.put("error", "No paths provided");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        int deletedCount = 0;
+        for (String path : paths) {
+            File file = new File(path);
+            if (file.exists() && file.delete()) {
+                deletedCount++;
+            }
+        }
+
+        response.put("message", deletedCount + " file(s) deleted successfully");
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/api/share/")
+    public ResponseEntity<Map<String, String>> shareMedia(@RequestParam String path) {
+        File file = new File(path);
+        Map<String, String> response = new HashMap<>();
+        if (file.exists()) {
+            response.put("status", "success");
+            response.put("name", file.getName());
+            response.put("path", file.getAbsolutePath());
+            // In a real app, you might generate a temporary token or unique link here
+            return ResponseEntity.ok(response);
+        }
+        response.put("error", "File not found");
+        return ResponseEntity.status(404).body(response);
+    }
+
     @GetMapping("/api/media/download/")
     public ResponseEntity<FileSystemResource> downloadLocalFile(@RequestParam String path) {
         File file = new File(path);
