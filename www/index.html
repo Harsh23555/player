@@ -1875,8 +1875,7 @@
           <line x1="3" y1="18" x2="3.01" y2="18" />
         </svg>
       </div>
-      <div class="icon-btn" id="downloadHeaderBtn" onclick="handleHeaderDownload()"
-        title="Download / Install">
+      <div class="icon-btn" id="downloadHeaderBtn" onclick="handleHeaderDownload()" title="Download / Install">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <polyline points="7 10 12 15 17 10" />
@@ -2051,7 +2050,8 @@
               d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
         </button>
-        <button class="action-btn" id="downloadBtn" onclick="handleOption('download')" style="display:none;" title="Download to device">
+        <button class="action-btn" id="downloadBtn" onclick="handleOption('download')" style="display:none;"
+          title="Download to device">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="7 10 12 15 17 10" />
@@ -2315,7 +2315,7 @@
     </div>
   </div>
 
-  <!-- Download Progress -->
+  <!-- ── Download Progress ── -->
   <div class="dl-progress-overlay" id="dlProgress">
     <div class="dl-progress-info">
       <span id="dlStatus">Downloading…</span>
@@ -2323,6 +2323,84 @@
     </div>
     <div class="dl-progress-bar">
       <div class="dl-progress-fill" id="dlFill"></div>
+    </div>
+  </div>
+
+  <!-- ── Download Quality Modal ── -->
+  <div class="modal-overlay" id="downloadQualityModal" onclick="closeModal('downloadQualityModal',event)">
+    <div class="modal-sheet" onclick="stopProp(event)">
+      <div class="sheet-handle">
+        <div class="sheet-handle-bar"></div>
+      </div>
+      <div class="sheet-header">
+        <div class="sheet-title">Select Quality</div>
+        <div class="sheet-close" onclick="closeModal('downloadQualityModal')">✕</div>
+      </div>
+      <div class="option-item" onclick="selectDownloadQuality('1080p')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="10" rx="2" ry="2" />
+          <path d="M12 12h.01" />
+        </svg>
+        <span>1080p Full HD</span>
+      </div>
+      <div class="option-item" onclick="selectDownloadQuality('720p')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="10" rx="2" ry="2" />
+          <path d="M12 12h.01" />
+        </svg>
+        <span>720p HD</span>
+      </div>
+      <div class="option-item" onclick="selectDownloadQuality('480p')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="10" rx="2" ry="2" />
+          <path d="M12 12h.01" />
+        </svg>
+        <span>480p SD</span>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+  </div>
+
+  <!-- ── URL Downloader Modal ── -->
+  <div class="modal-overlay" id="urlDownloaderModal" onclick="closeModal('urlDownloaderModal',event)">
+    <div class="modal-sheet" style="height:80vh;display:flex;flex-direction:column;max-height:800px;"
+      onclick="stopProp(event)">
+      <div class="sheet-handle">
+        <div class="sheet-handle-bar"></div>
+      </div>
+      <div class="sheet-header" style="flex-shrink:0;">
+        <div class="sheet-title">Video Downloader</div>
+        <div class="sheet-close" onclick="closeModal('urlDownloaderModal')">✕</div>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label">Media URL (YouTube, Facebook, etc.)</label>
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="dlUrlInput" class="form-input" placeholder="Paste link here..." style="flex:1;">
+          <button class="primary-btn" style="width:auto; margin:0;" onclick="fetchUrlInfo()"
+            id="fetchUrlBtn">Fetch</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label">Save Path (Optional)</label>
+        <input type="text" id="dlSavePathInput" class="form-input" placeholder="Default: Downloads/NOVA_Downloads">
+      </div>
+      <div id="dlInfoContainer" style="display:none; padding: 0 20px; overflow-y:auto; flex:1;">
+        <img id="dlThumb" src=""
+          style="width:100%; border-radius:12px; margin-bottom:10px; max-height: 200px; object-fit: cover;">
+        <div id="dlTitle" style="font-weight:bold; font-size:14px; margin-bottom:5px;"></div>
+        <div id="dlDuration" style="font-size:12px; color:var(--muted); margin-bottom:15px;"></div>
+        <div class="form-label">Select Quality</div>
+        <div id="dlQualities" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;"></div>
+      </div>
+      <div id="dlServerProgressContainer" style="display:none; padding: 0 20px; margin-bottom:30px; flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px; font-weight:bold;">
+          <span id="dlServerStatus" style="color:var(--accent);">Starting...</span>
+          <span id="dlServerPercent">0%</span>
+        </div>
+        <div class="progress-bg" style="height:8px; cursor:default; border-radius:4px; overflow:hidden;">
+          <div class="progress-fill" id="dlServerFill" style="width:0%; transition: width 0.3s;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2347,9 +2425,9 @@
       showToast('NOVA Player installed on home screen!');
     });
 
-    let Filesystem, Directory, Media, Preferences, App, Share, MediaScanner;
+    let Filesystem, Directory, Media, Preferences, App, Share, MediaScanner, MusicControls;
     if (window.Capacitor) {
-      ({ Filesystem, Directory, Media, Preferences, App, Share, MediaScanner } = Capacitor.Plugins);
+      ({ Filesystem, Directory, Media, Preferences, App, Share, MediaScanner, MusicControls } = Capacitor.Plugins);
       // Fallback for community media plugin naming variations
       if (!Media) Media = window.CapacitorMedia;
 
@@ -2398,6 +2476,64 @@
     let sleepTimer = null;
     let lastSelectedFile = null;
 
+    /* ── Music Controls (Background Play & Notification) ── */
+    function updateMusicControls(isPlaying) {
+      if (!window.Capacitor || !Capacitor.isNativePlatform() || !MusicControls) return;
+
+      const f = playQueue[queueIndex];
+      if (!f) return;
+
+      try {
+        MusicControls.create({
+          track: cleanName(f.name),
+          artist: f.folder.split('/').pop() || 'NOVA Player',
+          album: 'Local Media',
+          cover: f.thumbnail || '', // Base64 or URL
+          isPlaying: isPlaying,
+          dismissable: true,
+          hasPrev: true,
+          hasNext: true,
+          hasClose: true,
+          ticker: 'Playing ' + cleanName(f.name),
+          playIcon: 'media_play',
+          pauseIcon: 'media_pause',
+          prevIcon: 'media_prev',
+          nextIcon: 'media_next',
+          closeIcon: 'media_close',
+          notificationIcon: 'notification'
+        });
+
+        MusicControls.subscribe(action => {
+          const message = JSON.parse(action).message;
+          switch (message) {
+            case 'music-controls-next': playNext(); break;
+            case 'music-controls-previous': playPrev(); break;
+            case 'music-controls-pause':
+              document.getElementById('audioPlayer').pause();
+              document.getElementById('videoPlayer').pause();
+              updateMusicControls(false);
+              break;
+            case 'music-controls-play':
+              const f = playQueue[queueIndex];
+              const el = f && f.type === 'video' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
+              el.play();
+              updateMusicControls(true);
+              break;
+            case 'music-controls-destroy':
+              document.getElementById('audioPlayer').pause();
+              document.getElementById('videoPlayer').pause();
+              closePlayer();
+              break;
+            case 'music-controls-media-button-next': playNext(); break;
+            case 'music-controls-media-button-previous': playPrev(); break;
+            case 'music-controls-media-button-play-pause': togglePlay(); break;
+          }
+        });
+
+        MusicControls.listen();
+      } catch (e) { console.error("MusicControls error", e); }
+    }
+
     function handleHeaderDownload() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
@@ -2405,6 +2541,8 @@
         const f = playQueue[queueIndex] || lastSelectedFile;
         if (f && f.source === 'remote') {
           handleOption('download');
+        } else if (window.Capacitor && Capacitor.isNativePlatform()) {
+          openUrlDownloader();
         } else {
           showToast('Install the app (on browser) or play a remote file to download.');
         }
@@ -2564,7 +2702,7 @@
               if (prog) prog.textContent = "Deep scanning device (Native)...";
               const res = await MediaScanner.getMediaFiles();
               const combined = res.medias || [];
-              
+
               if (combined.length === 0 && Media) {
                 console.log('Native scan empty, trying community plugin...');
                 if (prog) prog.textContent = "Querying Library (Fallback)...";
@@ -2741,7 +2879,7 @@
     let _is_scanning_bg = false;
 
     async function scanDeep(path, depth = 0) {
-      if (depth > 6 || !Filesystem) return; // Reduced depth to avoid infinite scan bug
+      if (depth > 12 || !Filesystem) return; // Increased depth limit to 12 for better file discovery
       try {
         const result = await Filesystem.readdir({ path, directory: Directory.ExternalStorage });
         if (!result || !result.files) return;
@@ -3121,6 +3259,9 @@
       // Show/hide download button for remote files
       const dlBtn = document.getElementById('downloadBtn');
       if (dlBtn) dlBtn.style.display = f.source === 'remote' ? 'flex' : 'none';
+
+      // Update Native Music Controls
+      updateMusicControls(true);
     }
 
     let controlTimer;
@@ -3208,10 +3349,16 @@
     function togglePlay() {
       const audio = document.getElementById('audioPlayer');
       const video = document.getElementById('videoPlayer');
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex]; // Use queueIndex for accurate current file
       if (!f) return;
       const el = f.type === 'video' ? video : audio;
-      el.paused ? el.play() : el.pause();
+      if (el.paused) {
+        el.play();
+        updateMusicControls(true);
+      } else {
+        el.pause();
+        updateMusicControls(false);
+      }
     }
 
     function seek(e) {
@@ -3820,46 +3967,213 @@
       return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
-    /* ── Native Download ── */
+    /* ── Native Download (Fixed for Large Files) ── */
     async function downloadMedia(url, filename, type) {
       const progressEl = document.getElementById('dlProgress');
       const fillEl = document.getElementById('dlFill');
       const percentEl = document.getElementById('dlPercent');
       const statusEl = document.getElementById('dlStatus');
+
       progressEl.style.display = 'flex';
       statusEl.textContent = `Downloading ${filename}…`;
       fillEl.style.width = '0%'; percentEl.textContent = '0%';
+
       try {
         const sub = type === 'video' ? 'Videos' : 'Music';
-        if (Filesystem) {
-          try { await Filesystem.mkdir({ path: `NOVA/${sub}`, directory: Directory.ExternalStorage, recursive: true }); } catch (e) { }
-        }
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Server error');
-        const contentLength = +response.headers.get('Content-Length');
-        const reader = response.body.getReader();
-        let recv = 0; const chunks = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value); recv += value.length;
-          if (contentLength) { const p = (recv / contentLength) * 100; fillEl.style.width = p + '%'; percentEl.textContent = Math.round(p) + '%'; }
-        }
-        const blob = new Blob(chunks);
-        const fr = new FileReader();
-        fr.readAsDataURL(blob);
-        fr.onloadend = async () => {
-          const b64 = fr.result.split(',')[1];
-          if (Filesystem) await Filesystem.writeFile({ path: `NOVA/${sub}/${filename}`, data: b64, directory: Directory.ExternalStorage });
-          statusEl.textContent = 'Saved!';
-          setTimeout(() => progressEl.style.display = 'none', 2000);
-          showToast(`Saved to NOVA/${sub}`);
-          scanLocalStorage();
-        };
+        const savePath = `NOVA/${sub}/${filename}`;
+
+        if (!Filesystem) throw new Error('Filesystem plugin not available');
+
+        // Ensure directory exists
+        try { await Filesystem.mkdir({ path: `NOVA/${sub}`, directory: Directory.ExternalStorage, recursive: true }); } catch (e) { }
+
+        // Use Filesystem.downloadFile for efficient, large-file friendly downloading
+        // This avoids loading the entire file into memory as a Blob/Base64
+        const downloadRes = await Filesystem.downloadFile({
+          url: url,
+          path: savePath,
+          directory: Directory.ExternalStorage,
+          progress: true
+        });
+
+        // Some Capacitor versions provide progress via window events or listeners
+        // If the plugin supports progress listeners:
+        const progressListener = await Filesystem.addListener('downloadProgress', (progress) => {
+          if (progress.path === savePath) {
+            const p = (progress.received / progress.total) * 100;
+            fillEl.style.width = p + '%';
+            percentEl.textContent = Math.round(p) + '%';
+          }
+        });
+
+        // Since downloadFile might be async or block until done depending on version
+        // we'll wait for the result
+        statusEl.textContent = 'Saving to storage…';
+
+        if (progressListener) progressListener.remove();
+
+        statusEl.textContent = 'Saved!';
+        fillEl.style.width = '100%';
+        percentEl.textContent = '100%';
+
+        setTimeout(() => progressEl.style.display = 'none', 2000);
+        showToast(`Saved to NOVA/${sub}`);
+        scanLocalStorage(false); // background refresh
       } catch (e) {
+        console.error('Download failed', e);
         showToast('Download failed: ' + e.message);
         progressEl.style.display = 'none';
       }
+    }
+
+    /* ── URL Video Downloader Logic ── */
+    function openUrlDownloader() {
+      document.getElementById('dlUrlInput').value = '';
+      document.getElementById('dlInfoContainer').style.display = 'none';
+      document.getElementById('dlServerProgressContainer').style.display = 'none';
+      openModal('urlDownloaderModal');
+    }
+
+    async function fetchUrlInfo() {
+      const url = document.getElementById('dlUrlInput').value.trim();
+      if (!url) return;
+      const btn = document.getElementById('fetchUrlBtn');
+      btn.textContent = '...';
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${apiBase}/api/download/info/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('dlThumb').src = data.thumbnail || '';
+        document.getElementById('dlTitle').textContent = data.title || 'Unknown Title';
+        document.getElementById('dlDuration').textContent = data.duration ? formatTime(data.duration) : '';
+
+        const qContainer = document.getElementById('dlQualities');
+        qContainer.innerHTML = '';
+        const safeQualities = data.available_qualities && data.available_qualities.length ? data.available_qualities : ['1080p', '720p', '480p'];
+        safeQualities.forEach(q => {
+          const qBtn = document.createElement('button');
+          qBtn.className = 'preset-btn';
+          qBtn.textContent = q;
+          qBtn.onclick = () => startServerDownload(url, q);
+          qContainer.appendChild(qBtn);
+        });
+
+        const aBtn = document.createElement('button');
+        aBtn.className = 'preset-btn';
+        aBtn.textContent = 'Audio (MP3)';
+        aBtn.onclick = () => startServerDownload(url, 'audio');
+        qContainer.appendChild(aBtn);
+
+        document.getElementById('dlInfoContainer').style.display = 'block';
+      } catch (e) {
+        showToast(e.message);
+      } finally {
+        btn.textContent = 'Fetch';
+        btn.disabled = false;
+      }
+    }
+
+    async function startServerDownload(url, format) {
+      try {
+        const save_path = document.getElementById('dlSavePathInput').value.trim();
+        const res = await fetch(`${apiBase}/api/download/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, format, save_path })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('dlServerProgressContainer').style.display = 'block';
+        pollServerDownload(data.task_id);
+      } catch (e) {
+        showToast(e.message);
+      }
+    }
+
+    function pollServerDownload(taskId) {
+      const statusLabel = document.getElementById('dlServerStatus');
+      const percentLabel = document.getElementById('dlServerPercent');
+      const fillBar = document.getElementById('dlServerFill');
+
+      if (!!window.EventSource) {
+        const source = new EventSource(`${apiBase}/api/download/progress-sse/?task_id=${taskId}`);
+        source.onmessage = function (event) {
+          const data = JSON.parse(event.data);
+          if (data.error) {
+            showToast('Error: ' + data.error);
+            source.close();
+            return;
+          }
+          let statusText = data.status;
+          if (data.status === 'downloading') {
+            const speed = Math.round((data.speed || 0) / 1024);
+            statusText = `Downloading (${speed} KB/s)`;
+          } else if (data.status === 'converting') {
+            statusText = 'Converting/Processing...';
+          }
+          statusLabel.textContent = statusText;
+          const prog = Math.round(data.progress || 0);
+          percentLabel.textContent = prog + '%';
+          fillBar.style.width = prog + '%';
+          if (data.status === 'completed') {
+            source.close();
+            showToast('Download completed!');
+            setTimeout(() => {
+              closeModal('urlDownloaderModal');
+              scanLocalStorage(false);
+            }, 1500);
+          } else if (data.status === 'error') {
+            source.close();
+            showToast('Error: ' + (data.error || 'Unknown error'));
+          }
+        };
+        source.onerror = function () {
+          source.close();
+          startPollingFallback(taskId);
+        };
+      } else {
+        startPollingFallback(taskId);
+      }
+    }
+
+    function startPollingFallback(taskId) {
+      const intv = setInterval(async () => {
+        try {
+          const res = await fetch(`${apiBase}/api/download/status/?task_id=${taskId}`);
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          let statusText = data.status;
+          if (data.status === 'downloading') {
+            statusText = `Downloading (${Math.round((data.speed || 0) / 1024)} KB/s)`;
+          } else if (data.status === 'converting') {
+            statusText = 'Converting...';
+          }
+          document.getElementById('dlServerStatus').textContent = statusText;
+          document.getElementById('dlServerPercent').textContent = Math.round(data.progress || 0) + '%';
+          document.getElementById('dlServerFill').style.width = (data.progress || 0) + '%';
+          if (data.status === 'completed' || data.status === 'error') {
+            clearInterval(intv);
+            if (data.status === 'completed') {
+              showToast('Download completed!');
+              setTimeout(() => {
+                closeModal('urlDownloaderModal');
+                scanLocalStorage(false);
+              }, 1500);
+            } else {
+              showToast('Error: ' + data.error);
+            }
+          }
+        } catch (e) {
+          clearInterval(intv);
+        }
+      }, 1000);
     }
 
     /* ── Init ── */

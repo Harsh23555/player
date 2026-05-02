@@ -2427,9 +2427,9 @@
       showToast('NOVA Player installed on home screen!');
     });
 
-    let Filesystem, Directory, Media, Preferences, App, Share, MediaScanner;
+    let Filesystem, Directory, Media, Preferences, App, Share, MediaScanner, MusicControls;
     if (window.Capacitor) {
-      ({ Filesystem, Directory, Media, Preferences, App, Share, MediaScanner } = Capacitor.Plugins);
+      ({ Filesystem, Directory, Media, Preferences, App, Share, MediaScanner, MusicControls } = Capacitor.Plugins);
       // Fallback for community media plugin naming variations
       if (!Media) Media = window.CapacitorMedia;
 
@@ -2477,6 +2477,64 @@
     let lastScanTime = 0;
     let sleepTimer = null;
     let lastSelectedFile = null;
+
+    /* ── Music Controls (Background Play & Notification) ── */
+    function updateMusicControls(isPlaying) {
+      if (!window.Capacitor || !Capacitor.isNativePlatform() || !MusicControls) return;
+
+      const f = playQueue[queueIndex];
+      if (!f) return;
+
+      try {
+        MusicControls.create({
+          track: cleanName(f.name),
+          artist: f.folder.split('/').pop() || 'NOVA Player',
+          album: 'Local Media',
+          cover: f.thumbnail || '', // Base64 or URL
+          isPlaying: isPlaying,
+          dismissable: true,
+          hasPrev: true,
+          hasNext: true,
+          hasClose: true,
+          ticker: 'Playing ' + cleanName(f.name),
+          playIcon: 'media_play',
+          pauseIcon: 'media_pause',
+          prevIcon: 'media_prev',
+          nextIcon: 'media_next',
+          closeIcon: 'media_close',
+          notificationIcon: 'notification'
+        });
+
+        MusicControls.subscribe(action => {
+          const message = JSON.parse(action).message;
+          switch (message) {
+            case 'music-controls-next': playNext(); break;
+            case 'music-controls-previous': playPrev(); break;
+            case 'music-controls-pause':
+              document.getElementById('audioPlayer').pause();
+              document.getElementById('videoPlayer').pause();
+              updateMusicControls(false);
+              break;
+            case 'music-controls-play':
+              const f = playQueue[queueIndex];
+              const el = f && f.type === 'video' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
+              el.play();
+              updateMusicControls(true);
+              break;
+            case 'music-controls-destroy':
+              document.getElementById('audioPlayer').pause();
+              document.getElementById('videoPlayer').pause();
+              closePlayer();
+              break;
+            case 'music-controls-media-button-next': playNext(); break;
+            case 'music-controls-media-button-previous': playPrev(); break;
+            case 'music-controls-media-button-play-pause': togglePlay(); break;
+          }
+        });
+
+        MusicControls.listen();
+      } catch (e) { console.error("MusicControls error", e); }
+    }
 
     function handleHeaderDownload() {
       if (deferredPrompt) {
@@ -2821,7 +2879,7 @@
     let _is_scanning_bg = false;
 
     async function scanDeep(path, depth = 0) {
-      if (depth > 6 || !Filesystem) return; // Reduced depth to avoid infinite scan bug
+      if (depth > 12 || !Filesystem) return; // Increased depth limit to 12 for better file discovery
       try {
         const result = await Filesystem.readdir({ path, directory: Directory.ExternalStorage });
         if (!result || !result.files) return;
@@ -3229,6 +3287,9 @@
       const dlBtn = document.getElementById('downloadBtn');
       if (dlBtn) dlBtn.style.display = f.source === 'remote' ? 'flex' : 'none';
 
+      // Update Native Music Controls
+      updateMusicControls(true);
+
       // Preload logic: start preloading next track metadata
       preloadNext();
     }
@@ -3359,10 +3420,16 @@
     function togglePlay() {
       const audio = document.getElementById('audioPlayer');
       const video = document.getElementById('videoPlayer');
-      const f = currentListView[activeIndex];
+      const f = playQueue[queueIndex]; // Use queueIndex for accurate state
       if (!f) return;
       const el = f.type === 'video' ? video : audio;
-      el.paused ? el.play().catch(e => console.warn("Toggle play failed", e)) : el.pause();
+      if (el.paused) {
+        el.play().catch(e => console.warn("Toggle play failed", e));
+        updateMusicControls(true);
+      } else {
+        el.pause();
+        updateMusicControls(false);
+      }
     }
 
     function seek(e) {
@@ -4160,43 +4227,60 @@
       return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
-    /* ── Native Download ── */
+    /* ── Native Download (Fixed for Large Files) ── */
     async function downloadMedia(url, filename, type) {
       const progressEl = document.getElementById('dlProgress');
       const fillEl = document.getElementById('dlFill');
       const percentEl = document.getElementById('dlPercent');
       const statusEl = document.getElementById('dlStatus');
+
       progressEl.style.display = 'flex';
       statusEl.textContent = `Downloading ${filename}…`;
       fillEl.style.width = '0%'; percentEl.textContent = '0%';
+
       try {
         const sub = type === 'video' ? 'Videos' : 'Music';
-        if (Filesystem) {
-          try { await Filesystem.mkdir({ path: `NOVA/${sub}`, directory: Directory.ExternalStorage, recursive: true }); } catch (e) { }
-        }
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Server error');
-        const contentLength = +response.headers.get('Content-Length');
-        const reader = response.body.getReader();
-        let recv = 0; const chunks = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value); recv += value.length;
-          if (contentLength) { const p = (recv / contentLength) * 100; fillEl.style.width = p + '%'; percentEl.textContent = Math.round(p) + '%'; }
-        }
-        const blob = new Blob(chunks);
-        const fr = new FileReader();
-        fr.readAsDataURL(blob);
-        fr.onloadend = async () => {
-          const b64 = fr.result.split(',')[1];
-          if (Filesystem) await Filesystem.writeFile({ path: `NOVA/${sub}/${filename}`, data: b64, directory: Directory.ExternalStorage });
-          statusEl.textContent = 'Saved!';
-          setTimeout(() => progressEl.style.display = 'none', 2000);
-          showToast(`Saved to NOVA/${sub}`);
-          scanLocalStorage();
-        };
+        const savePath = `NOVA/${sub}/${filename}`;
+
+        if (!Filesystem) throw new Error('Filesystem plugin not available');
+
+        // Ensure directory exists
+        try { await Filesystem.mkdir({ path: `NOVA/${sub}`, directory: Directory.ExternalStorage, recursive: true }); } catch (e) { }
+
+        // Use Filesystem.downloadFile for efficient, large-file friendly downloading
+        // This avoids loading the entire file into memory as a Blob/Base64
+        const downloadRes = await Filesystem.downloadFile({
+          url: url,
+          path: savePath,
+          directory: Directory.ExternalStorage,
+          progress: true
+        });
+
+        // Some Capacitor versions provide progress via window events or listeners
+        // If the plugin supports progress listeners:
+        const progressListener = await Filesystem.addListener('downloadProgress', (progress) => {
+          if (progress.path === savePath) {
+            const p = (progress.received / progress.total) * 100;
+            fillEl.style.width = p + '%';
+            percentEl.textContent = Math.round(p) + '%';
+          }
+        });
+
+        // Since downloadFile might be async or block until done depending on version
+        // we'll wait for the result
+        statusEl.textContent = 'Saving to storage…';
+
+        if (progressListener) progressListener.remove();
+
+        statusEl.textContent = 'Saved!';
+        fillEl.style.width = '100%';
+        percentEl.textContent = '100%';
+
+        setTimeout(() => progressEl.style.display = 'none', 2000);
+        showToast(`Saved to NOVA/${sub}`);
+        scanLocalStorage(); // background refresh
       } catch (e) {
+        console.error('Download failed', e);
         showToast('Download failed: ' + e.message);
         progressEl.style.display = 'none';
       }

@@ -243,7 +243,7 @@ def media_list_api(request):
     if type_filter in ('audio', 'video'):
         qs = qs.filter(media_type=type_filter)
 
-    media = [build_media_dict(m) for m in qs[:2000]]
+    media = [build_media_dict(m) for m in qs[:5000]] # Increased limit from 2000
     return JsonResponse({'media': media, 'scanning': scanning, 'progress': _scan_progress})
 
 
@@ -315,7 +315,7 @@ def stream_media(request):
         end = min(end, file_size - 1)
         length = end - start + 1
 
-        def file_iterator(fpath, s, l, chunk=65536):
+        def file_iterator(fpath, s, l, chunk=524288):  # Increased chunk size to 512KB for faster play
             with open(fpath, 'rb') as f:
                 f.seek(s)
                 remaining = l
@@ -642,6 +642,53 @@ def download_info_api(request):
         return JsonResponse({"error": str(e)}, status=500)
 @csrf_exempt
 def delete_media_api(request):
+    """Permanently delete one or more media files from disk and DB."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        paths = data.get('paths', [])
+        if not paths:
+            return JsonResponse({'error': 'No paths provided'}, status=400)
+        
+        from .models import MediaFile
+        deleted_count = 0
+        errors = []
+
+        for path in paths:
+            mf = MediaFile.objects.filter(path=path).first()
+            if not mf:
+                errors.append(f"Not indexed: {path}")
+                continue
+            
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+                    deleted_count += 1
+                else:
+                    errors.append(f"File not found on disk: {path}")
+            except Exception as e:
+                errors.append(f"Failed to delete {path}: {str(e)}")
+                continue
+            
+            mf.delete()
+            
+            # Cleanup thumbnail
+            hash_name = hashlib.md5(path.encode('utf-8')).hexdigest() + '.jpg'
+            thumb_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'thumbnails')
+            thumb_path = os.path.join(thumb_dir, hash_name)
+            if os.path.exists(thumb_path):
+                try: os.remove(thumb_path)
+                except: pass
+
+        return JsonResponse({
+            'message': f'Successfully deleted {deleted_count} files',
+            'deleted_count': deleted_count,
+            'errors': errors
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
     """Permanently delete one or more media files from disk and DB."""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
