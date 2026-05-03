@@ -2131,9 +2131,9 @@
         </button>
       </div>
     </div>
-    <audio id="audioPlayer" preload="auto"></audio>
-    <audio id="audioPreloader" preload="auto" style="display:none;"></audio>
-    <video id="videoPreloader" playsinline preload="auto" style="display:none;"></video>
+    <audio id="audioPlayer" preload="auto" crossorigin="anonymous"></audio>
+    <audio id="audioPreloader" preload="auto" style="display:none;" crossorigin="anonymous"></audio>
+    <video id="videoPreloader" playsinline preload="auto" style="display:none;" crossorigin="anonymous"></video>
   </div>
 
   <!-- ── Options Modal ── -->
@@ -2468,9 +2468,9 @@
     let currentFolderPath = null;
     const speeds = [1, 1.25, 1.5, 2.0, 0.5, 0.75];
     let currentSpeedIdx = 0;
-    let serverIp = '10.64.12.74', serverPort = '8080';
+    let serverIp = '10.186.24.74', serverPort = '8080';
     let apiBase = window.location.origin;
-    if (!apiBase || apiBase === 'null' || apiBase.startsWith('file:')) {
+    if (!apiBase || apiBase === 'null' || apiBase.startsWith('file:') || (window.Capacitor && Capacitor.isNativePlatform())) {
       apiBase = `http://${serverIp}:${serverPort}`;
     }
     let scanningActive = false;
@@ -3218,12 +3218,18 @@
       // Build URL
       let url;
       if (f.source === 'local' && window.Capacitor && Capacitor.isNativePlatform()) {
-        url = Capacitor.convertFileSrc(f.path);
+        const rawUrl = Capacitor.convertFileSrc(f.path);
+        // Safely encode the URL to handle spaces and special characters on Android
+        url = encodeURI(rawUrl).replace(/#/g, '%23').replace(/\?/g, '%3F');
       } else if (f.source === 'remote') {
         url = `/api/stream/?path=${encodeURIComponent(f.path)}`;
       } else {
         url = f.path;
       }
+      
+      // DEBUG: Show toast with the generated URL
+      showToast("Loading: " + url.substring(0, 50) + "...");
+
 
       if (f.type === 'video') {
         audioArt.style.display = 'none';
@@ -3266,9 +3272,20 @@
           delete audio._loadListener;
           audio.play().catch(e => {
             console.warn("Audio play deferred", e);
+            showToast("Play error: " + e.message);
             updatePlayBtn(false);
           });
         };
+        
+        // DEBUG: Attach error listener
+        audio._errorListener = (e) => {
+          const err = audio.error;
+          const msg = err ? `MediaError ${err.code}: ${err.message}` : "Unknown media error";
+          showToast("Audio error: " + msg);
+          console.error("Audio player error:", err);
+        };
+        audio.addEventListener('error', audio._errorListener);
+
         audio.addEventListener('canplaythrough', audio._loadListener);
         audio.load();
         setupAudioListeners(audio);
@@ -3572,15 +3589,18 @@
     let audioCtx, analyser, vizSource, rafId;
     function setupVisualizer(audioEl) {
       try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (vizSource) { try { vizSource.disconnect(); } catch (e) { } }
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 128;
-        vizSource = audioCtx.createMediaElementSource(audioEl);
-        vizSource.connect(analyser);
-        analyser.connect(audioCtx.destination);
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 128;
+          vizSource = audioCtx.createMediaElementSource(audioEl);
+          vizSource.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        }
         drawVisualizer();
-      } catch (e) { }
+      } catch (e) { 
+        console.error("Visualizer setup error:", e);
+      }
     }
     function drawVisualizer() {
       const canvas = document.getElementById('visualizer');
@@ -3872,11 +3892,21 @@
           if (data.status === 'completed' || data.status === 'error') {
             clearInterval(intv);
             if (data.status === 'completed') {
-              showToast('Download completed!');
-              setTimeout(() => {
+              if (window.Capacitor && Capacitor.isNativePlatform() && data.final_path) {
+                document.getElementById('dlServerStatus').textContent = 'Transferring to phone...';
+                let finalName = data.final_path.split('\\').pop().split('/').pop();
+                const type = data.format === 'audio' ? 'audio' : 'video';
+                const streamUrl = `${apiBase}/api/stream/?path=${encodeURIComponent(data.final_path)}`;
+                
                 closeModal('urlDownloaderModal');
-                scanLocalStorage(false);
-              }, 1500);
+                downloadMedia(streamUrl, finalName, type);
+              } else {
+                showToast('Download completed!');
+                setTimeout(() => {
+                  closeModal('urlDownloaderModal');
+                  scanLocalStorage(false);
+                }, 1500);
+              }
             } else {
               showToast('Error: ' + data.error);
             }

@@ -2131,7 +2131,7 @@
         </button>
       </div>
     </div>
-    <audio id="audioPlayer" preload="metadata"></audio>
+    <audio id="audioPlayer" preload="metadata" crossorigin="anonymous"></audio>
   </div>
 
   <!-- ── Options Modal ── -->
@@ -2466,9 +2466,9 @@
     let currentFolderPath = null;
     const speeds = [1, 1.25, 1.5, 2.0, 0.5, 0.75];
     let currentSpeedIdx = 0;
-    let serverIp = '10.64.12.74', serverPort = '8080';
+    let serverIp = '10.186.24.74', serverPort = '8080';
     let apiBase = window.location.origin;
-    if (!apiBase || apiBase === 'null' || apiBase.startsWith('file:')) {
+    if (!apiBase || apiBase === 'null' || apiBase.startsWith('file:') || (window.Capacitor && Capacitor.isNativePlatform())) {
       apiBase = `http://${serverIp}:${serverPort}`;
     }
     let scanningActive = false;
@@ -3194,7 +3194,7 @@
       playIndex(idx);
     }
 
-    function playIndex(idx) {
+    async function playIndex(idx) {
       if (idx < 0 || idx >= playQueue.length) return;
       queueIndex = idx;
       activeIndex = idx; // sync for UI
@@ -3207,8 +3207,39 @@
       // Build URL
       let url;
       if (f.source === 'local' && window.Capacitor && Capacitor.isNativePlatform()) {
-        // Capacitor native: convert file:// to accessible URL
-        url = Capacitor.convertFileSrc(f.path);
+        try {
+          if (f.type === 'audio') {
+            // For audio, bypass WebView storage restrictions entirely by reading to a Blob
+            showToast("Loading audio track...");
+            const readParams = (f.path.startsWith('/') || f.path.startsWith('file://') || f.path.startsWith('content://'))
+              ? { path: f.path }
+              : { path: f.path, directory: Directory.ExternalStorage };
+            
+            const contents = await Filesystem.readFile(readParams);
+            
+            // Convert base64 to blob url
+            const byteChars = atob(contents.data);
+            const byteNums = new Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) {
+              byteNums[i] = byteChars.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNums);
+            const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+            url = URL.createObjectURL(blob);
+          } else {
+            // Video fallback (too large for blob)
+            const stat = await Filesystem.getUri({
+              path: f.path,
+              directory: f.path.startsWith('/') ? undefined : Directory.ExternalStorage
+            });
+            const rawUrl = Capacitor.convertFileSrc(stat.uri || f.path);
+            url = encodeURI(rawUrl).replace(/#/g, '%23').replace(/\?/g, '%3F');
+          }
+        } catch (e) {
+          console.error('Filesystem approach failed, falling back:', e);
+          const rawUrl = Capacitor.convertFileSrc(f.path);
+          url = encodeURI(rawUrl).replace(/#/g, '%23').replace(/\?/g, '%3F');
+        }
       } else if (f.source === 'remote') {
         // PC files indexed by Django backend — stream via same origin
         url = `/api/stream/?path=${encodeURIComponent(f.path)}`;
@@ -3497,15 +3528,18 @@
     let audioCtx, analyser, vizSource, rafId;
     function setupVisualizer(audioEl) {
       try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (vizSource) { try { vizSource.disconnect(); } catch (e) { } }
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 128;
-        vizSource = audioCtx.createMediaElementSource(audioEl);
-        vizSource.connect(analyser);
-        analyser.connect(audioCtx.destination);
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 128;
+          vizSource = audioCtx.createMediaElementSource(audioEl);
+          vizSource.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        }
         drawVisualizer();
-      } catch (e) { }
+      } catch (e) {
+        console.error("Visualizer error:", e);
+      }
     }
     function drawVisualizer() {
       const canvas = document.getElementById('visualizer');
@@ -4124,11 +4158,21 @@
           fillBar.style.width = prog + '%';
           if (data.status === 'completed') {
             source.close();
-            showToast('Download completed!');
-            setTimeout(() => {
+            if (window.Capacitor && Capacitor.isNativePlatform() && data.final_path) {
+              statusLabel.textContent = 'Transferring to phone...';
+              let finalName = data.final_path.split('\\').pop().split('/').pop();
+              const type = data.format === 'audio' ? 'audio' : 'video';
+              const streamUrl = `${apiBase}/api/stream/?path=${encodeURIComponent(data.final_path)}`;
+              
               closeModal('urlDownloaderModal');
-              scanLocalStorage(false);
-            }, 1500);
+              downloadMedia(streamUrl, finalName, type);
+            } else {
+              showToast('Download completed!');
+              setTimeout(() => {
+                closeModal('urlDownloaderModal');
+                scanLocalStorage(false);
+              }, 1500);
+            }
           } else if (data.status === 'error') {
             source.close();
             showToast('Error: ' + (data.error || 'Unknown error'));
@@ -4161,11 +4205,21 @@
           if (data.status === 'completed' || data.status === 'error') {
             clearInterval(intv);
             if (data.status === 'completed') {
-              showToast('Download completed!');
-              setTimeout(() => {
+              if (window.Capacitor && Capacitor.isNativePlatform() && data.final_path) {
+                document.getElementById('dlServerStatus').textContent = 'Transferring to phone...';
+                let finalName = data.final_path.split('\\').pop().split('/').pop();
+                const type = data.format === 'audio' ? 'audio' : 'video';
+                const streamUrl = `${apiBase}/api/stream/?path=${encodeURIComponent(data.final_path)}`;
+                
                 closeModal('urlDownloaderModal');
-                scanLocalStorage(false);
-              }, 1500);
+                downloadMedia(streamUrl, finalName, type);
+              } else {
+                showToast('Download completed!');
+                setTimeout(() => {
+                  closeModal('urlDownloaderModal');
+                  scanLocalStorage(false);
+                }, 1500);
+              }
             } else {
               showToast('Error: ' + data.error);
             }
