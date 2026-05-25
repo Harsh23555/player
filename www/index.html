@@ -2468,7 +2468,10 @@
     let currentSpeedIdx = 0;
     let serverIp = '10.186.24.74', serverPort = '8080';
     let apiBase = window.location.origin;
-    if (!apiBase || apiBase === 'null' || apiBase.startsWith('file:') || (window.Capacitor && Capacitor.isNativePlatform())) {
+    // In Capacitor native apps the page is served from a local capacitor:// or http://localhost scheme.
+    // We must point at the actual Django server IP instead.
+    if (!apiBase || apiBase === 'null' || apiBase.startsWith('file:') || apiBase.startsWith('capacitor:') ||
+        (window.Capacitor && Capacitor.isNativePlatform())) {
       apiBase = `http://${serverIp}:${serverPort}`;
     }
     let scanningActive = false;
@@ -4060,174 +4063,369 @@
       }
     }
 
-    /* ── URL Video Downloader Logic ── */
+    /* ══════════════════════════════════════════════════════════
+       VIDEO DOWNLOADER  — 100% Server-Independent
+       ══════════════════════════════════════════════════════════
+       FOR YOUTUBE: Uses Piped API (open-source, CORS-enabled, no key needed)
+       Multiple public Piped instances are tried in sequence.
+       Phone downloads directly from the CDN stream URL.
+       FOR OTHER SITES: Server (if up) or direct .mp4 URLs.
+    ══════════════════════════════════════════════════════════ */
+
+    const PIPED_INSTANCES = [
+      'https://pipedapi.kavin.rocks',
+      'https://pipedapi.tokhmi.xyz',
+      'https://piped-api.garudalinux.org',
+      'https://api.piped.yt',
+      'https://pipedapi.colinslegacy.com',
+      'https://piped.smnz.de',
+      'https://pa.mint.lgbt',
+    ];
+
+    let _dlState = { title: '', thumb: '', videoId: '', qualities: [], audioUrl: '', audioExt: 'm4a', sourceUrl: '' };
+
     function openUrlDownloader() {
+      _dlState = { title: '', thumb: '', videoId: '', qualities: [], audioUrl: '', audioExt: 'm4a', sourceUrl: '' };
       document.getElementById('dlUrlInput').value = '';
-      document.getElementById('dlInfoContainer').style.display = 'none';
+      document.getElementById('dlSavePathInput').value = '';
+      _dlPanel('hidden');
       document.getElementById('dlServerProgressContainer').style.display = 'none';
       openModal('urlDownloaderModal');
     }
 
+    function _dlPanel(mode, html) {
+      const c = document.getElementById('dlInfoContainer');
+      if (mode === 'hidden') { c.style.display = 'none'; return; }
+      c.style.display = 'block';
+      if (mode === 'loading') {
+        c.innerHTML = '<div style="text-align:center;padding:32px 0 20px;"><div class="loading-spinner" style="margin:0 auto 14px;"></div><div style="font-size:13px;color:var(--muted);">' + escapeHtml(html || 'Fetching...') + '</div></div>';
+      } else if (mode === 'error') {
+        c.innerHTML = '<div style="text-align:center;padding:20px 10px;"><div style="font-size:36px;margin-bottom:10px;">&#9888;&#65039;</div><div style="font-size:13px;color:var(--accent2);line-height:1.7;">' + html + '</div></div>';
+      } else {
+        c.innerHTML = html;
+      }
+    }
+
     async function fetchUrlInfo() {
-      const url = document.getElementById('dlUrlInput').value.trim();
-      if (!url) return;
+      let url = document.getElementById('dlUrlInput').value.trim();
+      if (!url) { showToast('Paste a video URL first'); return; }
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        showToast('URL must start with http:// or https://'); return;
+      }
+
+      // If it's a YouTube playlist URL, extract the first video ID from the list param
+      // e.g. https://youtube.com/playlist?list=XXX  →  not downloadable directly
+      // But https://youtube.com/watch?v=XXX&list=YYY  →  strip the list, keep the video
+      try {
+        const u = new URL(url);
+        if (/youtube\.com|youtu\.be/.test(u.hostname)) {
+          const v = u.searchParams.get('v');
+          if (v) {
+            // Has a video ID — strip playlist noise, keep just the video
+            url = 'https://www.youtube.com/watch?v=' + v;
+          } else if (u.pathname === '/playlist' || u.searchParams.get('list')) {
+            // Pure playlist with no video — show a friendly error immediately
+            _dlPanel('error',
+              '<b>Playlist URLs are not supported</b><br><br>' +
+              'Please paste the URL of a single video.<br><br>' +
+              'How to get a single video URL:<br>' +
+              '1. Open the playlist on YouTube<br>' +
+              '2. Tap any video to open it<br>' +
+              '3. Copy <b>that</b> URL (it will contain <code>watch?v=</code>)'
+            );
+            return;
+          }
+        }
+      } catch(_) {}
+
+      _dlState.sourceUrl = url;
       const btn = document.getElementById('fetchUrlBtn');
       btn.textContent = '...';
       btn.disabled = true;
-      try {
-        const res = await fetch(`${apiBase}/api/download/info/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
+      _dlPanel('loading', 'Fetching video info...');
 
-        document.getElementById('dlThumb').src = data.thumbnail || '';
-        document.getElementById('dlTitle').textContent = data.title || 'Unknown Title';
-        document.getElementById('dlDuration').textContent = data.duration ? formatTime(data.duration) : '';
+      const yid = _ytId(url);
+      if (yid) {
+        _dlState.videoId = yid;
+        await _pipedFetch(yid);
+      } else {
+        const up = await _serverUp();
+        if (up) { await _serverFetch(url); } else { _otherSite(url); }
+      }
+      btn.textContent = 'Fetch';
+      btn.disabled = false;
+    }
 
-        const qContainer = document.getElementById('dlQualities');
-        qContainer.innerHTML = '';
-        const safeQualities = data.available_qualities && data.available_qualities.length ? data.available_qualities : ['1080p', '720p', '480p'];
-        safeQualities.forEach(q => {
-          const qBtn = document.createElement('button');
-          qBtn.className = 'preset-btn';
-          qBtn.textContent = q;
-          qBtn.onclick = () => startServerDownload(url, q);
-          qContainer.appendChild(qBtn);
-        });
+    async function _pipedFetch(videoId) {
+      let lastErr = 'All instances failed';
+      for (const inst of PIPED_INSTANCES) {
+        try {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 8000);
+          // FIX: must pass ctrl.signal, NOT ctrl itself
+          const res = await fetch(inst + '/streams/' + videoId, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data.error) { lastErr = data.error; continue; }
 
-        const aBtn = document.createElement('button');
-        aBtn.className = 'preset-btn';
-        aBtn.textContent = 'Audio (MP3)';
-        aBtn.onclick = () => startServerDownload(url, 'audio');
-        qContainer.appendChild(aBtn);
+          const vStreams = (data.videoStreams || []).filter(s => s.url && s.quality);
+          const aStreams = (data.audioStreams || []).filter(s => s.url);
 
-        document.getElementById('dlInfoContainer').style.display = 'block';
-      } catch (e) {
-        showToast(e.message);
-      } finally {
-        btn.textContent = 'Fetch';
-        btn.disabled = false;
+          const qMap = {};
+          for (const s of vStreams) {
+            const label = s.quality.replace(/p\d{2,}$/, 'p');
+            if (!qMap[label] || (s.mimeType && s.mimeType.includes('mp4') && !qMap[label].mimeType?.includes('mp4'))) {
+              qMap[label] = s;
+            }
+          }
+          const qualities = Object.entries(qMap)
+            .map(([label, s]) => ({ label, url: s.url, ext: 'mp4' }))
+            .sort((a, b) => parseInt(b.label) - parseInt(a.label));
+
+          const bestAudio = aStreams.sort((a,b) => (b.bitrate||0)-(a.bitrate||0))[0];
+          _dlState.title     = data.title || ('YouTube ' + videoId);
+          _dlState.thumb     = data.thumbnailUrl || ('https://img.youtube.com/vi/' + videoId + '/hqdefault.jpg');
+          _dlState.qualities = qualities;
+          _dlState.audioUrl  = bestAudio ? bestAudio.url : '';
+          _dlState.audioExt  = (bestAudio && bestAudio.mimeType && bestAudio.mimeType.includes('webm')) ? 'webm' : 'm4a';
+          _dlRender();
+          return;
+        } catch(e) { lastErr = e.message; }
+      }
+      const up = await _serverUp();
+      if (up) { _dlPanel('loading', 'Piped unavailable, trying server...'); await _serverFetch(_dlState.sourceUrl); return; }
+      _dlPanel('error', 'Could not fetch video info.<br><br>Check internet connection or ensure the video is public.<br><small style="opacity:.6;">Last error: ' + escapeHtml(lastErr) + '</small>');
+    }
+
+    function _otherSite(url) {
+      let host = '';
+      try { host = new URL(url).hostname.replace('www.',''); } catch(_) {}
+      const isDirect = /\.(mp4|webm|mkv|mov|avi|mp3|m4a|flac|ogg)(\?|$)/i.test(url);
+      if (isDirect) {
+        const ext = (url.match(/\.(mp4|webm|mkv|mov|avi|mp3|m4a|flac|ogg)/i)||['','mp4'])[1];
+        _dlState.title = host + '_download';
+        _dlState.qualities = [{ label: 'Original', url, ext }];
+        if (/mp3|m4a|flac|ogg/.test(ext)) _dlState.audioUrl = url;
+        _dlRender();
+      } else {
+        _dlPanel('error',
+          '<b>PC server offline</b><br><br>' +
+          'For non-YouTube sites (' + escapeHtml(host) + '), your PC server must be running.<br><br>' +
+          '<b>Options:</b><br>' +
+          '- Start server: <code>python manage.py runserver 0.0.0.0:8080</code><br>' +
+          '- Paste a direct <b>.mp4 / .mp3 URL</b> instead<br>' +
+          '- YouTube video links always work without a server'
+        );
       }
     }
 
-    async function startServerDownload(url, format) {
+    async function _serverFetch(url) {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 50000);
+      try {
+        const res = await fetch(apiBase + '/api/download/info/', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }), signal: ctrl.signal
+        });
+        clearTimeout(tid);
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Server error ' + res.status);
+        _dlState.title    = data.title || 'Video';
+        _dlState.thumb    = data.thumbnail || '';
+        _dlState.qualities = data.qualities || [];
+        _dlState.audioUrl  = data.audio_url || '';
+        _dlState.audioExt  = data.audio_ext || 'm4a';
+        _dlRender(true);
+      } catch(e) {
+        clearTimeout(tid);
+        let msg = e.message;
+        if (e.name === 'AbortError') msg = 'Server timed out.';
+        else if (msg.includes('Failed to fetch')) msg = 'Cannot reach server at ' + apiBase;
+        _dlPanel('error', escapeHtml(msg));
+      }
+    }
+
+    function _dlRender(serverMode) {
+      const { title, thumb, qualities, audioUrl, audioExt, sourceUrl } = _dlState;
+      let siteName = '';
+      try {
+        const h = new URL(sourceUrl).hostname.replace('www.','');
+        const m = {'youtube.com':'YouTube','youtu.be':'YouTube','instagram.com':'Instagram',
+          'twitter.com':'Twitter/X','x.com':'Twitter/X','tiktok.com':'TikTok',
+          'facebook.com':'Facebook','vimeo.com':'Vimeo','soundcloud.com':'SoundCloud'};
+        siteName = m[h] || h;
+      } catch(_) {}
+
+      _dlPanel('html',
+        `<img src="${escapeHtml(thumb)}" style="${thumb ? '' : 'display:none;'}width:100%;border-radius:12px;margin-bottom:12px;max-height:190px;object-fit:cover;" onerror="this.style.display='none'">` +
+        '<div style="font-weight:700;font-size:15px;margin-bottom:4px;line-height:1.4;">' + escapeHtml(title) + '</div>' +
+        (siteName ? '<div style="font-size:11px;color:var(--muted);margin-bottom:14px;">' + escapeHtml(siteName) + '</div>' : '') +
+        '<div class="form-label" style="margin-bottom:10px;">Choose format</div>' +
+        '<div id="dlQualities" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>' +
+        '<div id="dlNote" style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;"></div>'
+      );
+
+      const qc = document.getElementById('dlQualities');
+      if (qualities.length === 0 && serverMode) {
+        ['1080p','720p','480p','360p'].forEach(q => {
+          const b = document.createElement('button');
+          b.className = 'preset-btn'; b.textContent = 'Video ' + q;
+          b.onclick = () => _srvDl(sourceUrl, q, 'video'); qc.appendChild(b);
+        });
+      } else {
+        qualities.forEach(q => {
+          const b = document.createElement('button');
+          b.className = 'preset-btn'; b.textContent = 'Video ' + q.label;
+          b.onclick = () => _directDl(q.url, q.label, q.ext, 'video'); qc.appendChild(b);
+        });
+      }
+      if (audioUrl) {
+        const ab = document.createElement('button'); ab.className = 'preset-btn';
+        ab.style.cssText = 'background:rgba(92,240,252,0.12);color:var(--accent3);border-color:var(--accent3);';
+        ab.textContent = 'Audio only';
+        ab.onclick = () => _directDl(audioUrl, 'audio', audioExt, 'audio'); qc.appendChild(ab);
+      } else if (serverMode) {
+        const ab = document.createElement('button'); ab.className = 'preset-btn';
+        ab.style.cssText = 'background:rgba(92,240,252,0.12);color:var(--accent3);border-color:var(--accent3);';
+        ab.textContent = 'Audio only';
+        ab.onclick = () => _srvDl(sourceUrl, 'audio', 'audio'); qc.appendChild(ab);
+      }
+      const n = document.getElementById('dlNote');
+      if (n) n.innerHTML = serverMode
+        ? '<span style="color:var(--accent);font-weight:600;">Via server</span>'
+        : '<span style="color:var(--accent);font-weight:600;">Direct download</span> - No PC server needed';
+    }
+
+    async function _directDl(mediaUrl, label, ext, type) {
+      document.querySelectorAll('#dlQualities button').forEach(b => b.disabled = true);
+      const prog = document.getElementById('dlServerProgressContainer');
+      const statEl = document.getElementById('dlServerStatus');
+      const pctEl = document.getElementById('dlServerPercent');
+      const fillEl = document.getElementById('dlServerFill');
+      prog.style.display = 'block'; statEl.textContent = 'Preparing...'; pctEl.textContent = ''; fillEl.style.width = '5%';
+      const safeExt = (ext || 'mp4').replace(/^\./, '');
+      const filename = (_dlState.title || 'video').replace(/[\\/:*?"<>|]/g, '_').substring(0, 90) + '.' + safeExt;
+      try {
+        if (window.Capacitor && Capacitor.isNativePlatform() && typeof Filesystem !== 'undefined') {
+          const sub = type === 'audio' ? 'Music' : 'Movies';
+          const path = 'NOVA/' + sub + '/' + filename;
+          try { await Filesystem.mkdir({ path: 'NOVA/' + sub, directory: Directory.ExternalStorage, recursive: true }); } catch(_) {}
+          statEl.textContent = 'Downloading...'; fillEl.style.width = '20%';
+          if (typeof Filesystem.downloadFile === 'function') {
+            try {
+              await Filesystem.downloadFile({ url: mediaUrl, path, directory: Directory.ExternalStorage });
+              _dlDone(prog, statEl, pctEl, fillEl, 'NOVA/' + sub + '/'); return;
+            } catch(e2) { console.warn('downloadFile failed:', e2.message); }
+          }
+          statEl.textContent = 'Downloading (large files may take a while)...';
+          const resp = await fetch(mediaUrl);
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const blob = await resp.blob();
+          fillEl.style.width = '70%'; statEl.textContent = 'Saving...';
+          const b64 = await new Promise((res,rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+          await Filesystem.writeFile({ path, data: b64, directory: Directory.ExternalStorage, recursive: true });
+          _dlDone(prog, statEl, pctEl, fillEl, 'NOVA/' + sub + '/');
+        } else {
+          fillEl.style.width = '100%'; statEl.textContent = 'Opening download...';
+          const a = document.createElement('a'); a.href = mediaUrl; a.download = filename;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          showToast('Download started');
+          setTimeout(() => { prog.style.display = 'none'; closeModal('urlDownloaderModal'); }, 2000);
+        }
+      } catch(e) {
+        prog.style.display = 'none';
+        document.querySelectorAll('#dlQualities button').forEach(b => b.disabled = false);
+        _dlPanel('error', 'Download failed: ' + escapeHtml(e.message || 'Unknown error'));
+      }
+    }
+
+    function _dlDone(prog, statEl, pctEl, fillEl, folder) {
+      fillEl.style.width = '100%'; pctEl.textContent = 'Done'; statEl.textContent = 'Saved!';
+      showToast('Saved to ' + folder);
+      setTimeout(() => { prog.style.display = 'none'; closeModal('urlDownloaderModal'); scanLocalStorage(false); }, 2000);
+    }
+
+    async function _srvDl(url, quality, type) {
+      document.querySelectorAll('#dlQualities button').forEach(b => b.disabled = true);
+      const prog = document.getElementById('dlServerProgressContainer');
+      const statEl = document.getElementById('dlServerStatus');
+      const pctEl = document.getElementById('dlServerPercent');
+      const fillEl = document.getElementById('dlServerFill');
+      prog.style.display = 'block'; statEl.textContent = 'Queuing...'; pctEl.textContent = '0%'; fillEl.style.width = '0%';
       try {
         const save_path = document.getElementById('dlSavePathInput').value.trim();
-        const res = await fetch(`${apiBase}/api/download/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, format, save_path })
-        });
+        const res = await fetch(apiBase + '/api/download/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, format: quality, save_path }) });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-
-        document.getElementById('dlServerProgressContainer').style.display = 'block';
-        pollServerDownload(data.task_id);
-      } catch (e) {
-        showToast(e.message);
+        _pollSrv(data.task_id, statEl, pctEl, fillEl, prog);
+      } catch(e) {
+        prog.style.display = 'none';
+        document.querySelectorAll('#dlQualities button').forEach(b => b.disabled = false);
+        _dlPanel('error', 'Server download failed: ' + escapeHtml(e.message || 'Unknown'));
       }
     }
 
-    function pollServerDownload(taskId) {
-      const statusLabel = document.getElementById('dlServerStatus');
-      const percentLabel = document.getElementById('dlServerPercent');
-      const fillBar = document.getElementById('dlServerFill');
-
-      if (!!window.EventSource) {
-        const source = new EventSource(`${apiBase}/api/download/progress-sse/?task_id=${taskId}`);
-        source.onmessage = function (event) {
-          const data = JSON.parse(event.data);
-          if (data.error) {
-            showToast('Error: ' + data.error);
-            source.close();
-            return;
-          }
-          let statusText = data.status;
-          if (data.status === 'downloading') {
-            const speed = Math.round((data.speed || 0) / 1024);
-            statusText = `Downloading (${speed} KB/s)`;
-          } else if (data.status === 'converting') {
-            statusText = 'Converting/Processing...';
-          }
-          statusLabel.textContent = statusText;
-          const prog = Math.round(data.progress || 0);
-          percentLabel.textContent = prog + '%';
-          fillBar.style.width = prog + '%';
+    function _pollSrv(taskId, statEl, pctEl, fillEl, prog) {
+      const tick = async () => {
+        try {
+          const r = await fetch(apiBase + '/api/download/status/?task_id=' + taskId);
+          const data = await r.json();
+          if (data.error) throw new Error(data.error);
+          let txt = data.status;
+          if (data.status === 'downloading') txt = 'Downloading... (' + Math.round((data.speed||0)/1024) + ' KB/s)';
+          if (data.status === 'converting')  txt = 'Converting...';
+          statEl.textContent = txt; pctEl.textContent = Math.round(data.progress||0) + '%'; fillEl.style.width = (data.progress||0) + '%';
           if (data.status === 'completed') {
-            source.close();
             if (window.Capacitor && Capacitor.isNativePlatform() && data.final_path) {
-              statusLabel.textContent = 'Transferring to phone...';
-              let finalName = data.final_path.split('\\').pop().split('/').pop();
-              const type = data.format === 'audio' ? 'audio' : 'video';
-              const streamUrl = `${apiBase}/api/stream/?path=${encodeURIComponent(data.final_path)}`;
-              
+              statEl.textContent = 'Transferring to phone...';
+              const fname = data.final_path.split(/[\\/]/).pop();
+              const streamUrl = apiBase + '/api/stream/?path=' + encodeURIComponent(data.final_path);
               closeModal('urlDownloaderModal');
-              downloadMedia(streamUrl, finalName, type);
+              downloadMedia(streamUrl, fname, data.format === 'audio' ? 'audio' : 'video');
             } else {
-              showToast('Download completed!');
-              setTimeout(() => {
-                closeModal('urlDownloaderModal');
-                scanLocalStorage(false);
-              }, 1500);
+              showToast('Download complete!');
+              setTimeout(() => { prog.style.display = 'none'; closeModal('urlDownloaderModal'); scanLocalStorage(false); }, 1500);
             }
           } else if (data.status === 'error') {
-            source.close();
-            showToast('Error: ' + (data.error || 'Unknown error'));
-          }
-        };
-        source.onerror = function () {
-          source.close();
-          startPollingFallback(taskId);
-        };
-      } else {
-        startPollingFallback(taskId);
-      }
+            prog.style.display = 'none';
+            document.querySelectorAll('#dlQualities button').forEach(b => b.disabled = false);
+            _dlPanel('error', 'Server error: ' + escapeHtml(data.error || 'Unknown'));
+          } else { setTimeout(tick, 1200); }
+        } catch(e) {
+          prog.style.display = 'none';
+          document.querySelectorAll('#dlQualities button').forEach(b => b.disabled = false);
+          _dlPanel('error', 'Lost server connection during download.');
+        }
+      };
+      tick();
     }
 
-    function startPollingFallback(taskId) {
-      const intv = setInterval(async () => {
-        try {
-          const res = await fetch(`${apiBase}/api/download/status/?task_id=${taskId}`);
-          const data = await res.json();
-          if (data.error) throw new Error(data.error);
-          let statusText = data.status;
-          if (data.status === 'downloading') {
-            statusText = `Downloading (${Math.round((data.speed || 0) / 1024)} KB/s)`;
-          } else if (data.status === 'converting') {
-            statusText = 'Converting...';
-          }
-          document.getElementById('dlServerStatus').textContent = statusText;
-          document.getElementById('dlServerPercent').textContent = Math.round(data.progress || 0) + '%';
-          document.getElementById('dlServerFill').style.width = (data.progress || 0) + '%';
-          if (data.status === 'completed' || data.status === 'error') {
-            clearInterval(intv);
-            if (data.status === 'completed') {
-              if (window.Capacitor && Capacitor.isNativePlatform() && data.final_path) {
-                document.getElementById('dlServerStatus').textContent = 'Transferring to phone...';
-                let finalName = data.final_path.split('\\').pop().split('/').pop();
-                const type = data.format === 'audio' ? 'audio' : 'video';
-                const streamUrl = `${apiBase}/api/stream/?path=${encodeURIComponent(data.final_path)}`;
-                
-                closeModal('urlDownloaderModal');
-                downloadMedia(streamUrl, finalName, type);
-              } else {
-                showToast('Download completed!');
-                setTimeout(() => {
-                  closeModal('urlDownloaderModal');
-                  scanLocalStorage(false);
-                }, 1500);
-              }
-            } else {
-              showToast('Error: ' + data.error);
-            }
-          }
-        } catch (e) {
-          clearInterval(intv);
+    async function _serverUp() {
+      if (!apiBase || apiBase.startsWith('capacitor:') || apiBase.startsWith('file:')) return false;
+      try {
+        const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 3000);
+        const r = await fetch(apiBase + '/api/scan-status/', { signal: ctrl.signal });
+        return r.ok;
+      } catch(_) { return false; }
+    }
+
+    function _ytId(url) {
+      try {
+        const u = new URL(url);
+        if (/youtu\.be/.test(u.hostname)) return u.pathname.slice(1).split('?')[0];
+        if (/youtube\.com/.test(u.hostname)) {
+          if (u.pathname.includes('/shorts/')) return u.pathname.split('/shorts/')[1]?.split('?')[0];
+          if (u.pathname.includes('/embed/'))  return u.pathname.split('/embed/')[1]?.split('?')[0];
+          return u.searchParams.get('v') || null;
         }
-      }, 1000);
+      } catch(_) {}
+      return null;
+    }
+
+    async function startServerDownload(url, format) { await _srvDl(url, format, format === 'audio' ? 'audio' : 'video'); }
+    function pollServerDownload(taskId) {
+      _pollSrv(taskId, document.getElementById('dlServerStatus'), document.getElementById('dlServerPercent'), document.getElementById('dlServerFill'), document.getElementById('dlServerProgressContainer'));
     }
 
     /* ── Init ── */
