@@ -1,7 +1,7 @@
 {
   "appId": "com.nova.localmediascanner",
   "appName": "NOVA Player",
-  "webDir": "www",
+  "webDir": "frontend",
   "bundledWebRuntime": false,
   "plugins": {
     "StatusBar": {
